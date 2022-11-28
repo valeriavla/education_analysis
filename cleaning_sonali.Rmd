@@ -1,0 +1,43 @@
+---
+title: "511_cleaning"
+author: "Sonali Dabhi"
+date: "2022-11-28"
+output: html_document
+---
+
+```{r}
+library(tidyverse)
+library(ggplot2)
+library(reshape)
+
+df1 <- read.csv('./90-10-revenue-percentages.csv')
+df2 <- read.csv('./grants.csv')
+df3 <- read.csv('./loans.csv')
+df4 <- read.csv('./campus-based-volume.csv')
+df5 <- read.csv('./completers.csv')
+df6 <- read.csv('./admissions-requirements.csv')
+df7 <- read.csv("./admissions-enrollment.csv")
+df8 <- read.csv('./academic-year-tuition.csv')
+df9 <- read.csv('./enrollment_schooltype.csv')
+
+```
+
+
+```{r}
+#only want year 2019, get the enrollment numbers from 2013
+df5 <- read.csv('./completers.csv')
+df9 <- read.csv('./enrollment_schooltype.csv')
+df5 <- subset(df5, df5$year == 2019)
+df5 <- df5 %>% dplyr::rename(UnitID = unitid)
+df5$race_sex <- paste(df5$race, df5$sex)
+df5 <- subset(df5, select = -c(race, sex))
+df_5 <- reshape(df5, idvar = c('UnitID', 'year', 'fips'), timevar = 'race_sex', direction = "wide")
+merge_df <- merge(x = df9, y = df_5, by = 'UnitID')
+merge_df <- subset(merge_df, merge_df$Sector.of.institution..HD2013. == c(1,2,3))
+merge_df <- subset(merge_df, !is.na(merge_df$Grand.total..EF2013A..All.students..Undergraduate.total.))
+merge_df <- merge_df %>% dplyr::rename(Sector = Sector.of.institution..HD2013., Tot_EnrolL_2013 = Grand.total..EF2013A..All.students..Undergraduate.total., Tot_men_enroll_2013 = Grand.total.men..EF2013A..All.students..Undergraduate.total.)
+
+write.csv(merge_df, './enrollement_completer.csv')
+
+```
+
