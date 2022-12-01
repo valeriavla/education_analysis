@@ -1,13 +1,14 @@
 
 ```{r}
-
+library(plyr)
 library(tidyverse)
 library(ggplot2)
-library(plyr)
+
 
 
 df <- read.csv("../data/enrollement_completer.csv")
 df1 <- read.csv("../data/grad_completion_ratesData_11-16-2022---690.csv")
+finance_data <- read.csv("../data/cost_finances_Data_12-1-2022---689.csv")
 
 # clean up column names
 colnames(df1) <- gsub("\\.\\.", "_", tolower(gsub("Graduation.rate...Bachelor.degree.within.6.years..", "gradrate_ba_6yrs", gsub("..DRVGR2020_RV.", "", colnames(df1)))))
@@ -21,9 +22,14 @@ print(nrow(df))
 # convert the sector into the actual names
 df$sector <- mapvalues(df$sector, from = c(1, 2, 3), to = c("Public", "Private not-for-profit", "Private for-profit"))
 
+# join in with the finance data which can be used for regressions
+finance_data <- finance_data %>% dplyr::rename(unitid=UnitID)
+df <- merge(df, finance_data, by = 'unitid', all.x = TRUE)
+
 write.csv(df, "../data/all_data_merged_df.csv", row.names = FALSE)
 
 ```
+
 
 
 
@@ -89,5 +95,12 @@ id_cols <- c("unitid", "institution.name.x", "institution_entity_name_hd2020", "
              "zip.code_hd2020", "institutional.category_hd2020")
 full_grad_rate <- df %>% subset(gradrate_ba_6yrstotal == 100) %>% dplyr::select(append(id_cols, colnames(df)[grep("grad(uation.)?rate", colnames(df))]))
 ```
+
+
+```{r}
+# adding in continuous variables to be used in regression
+
+```
+
 
 
