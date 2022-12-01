@@ -1,0 +1,108 @@
+---
+title: "sonali_hypothesis_testing"
+author: "Sonali Dabhi"
+date: "2022-11-30"
+output: html_document
+---
+
+```{r}
+df <- read.csv('../data/all_data_merged_df.csv')
+library(tidyverse)
+```
+
+```{r}
+# do some data cleaning to try to scope out outliers - these are the cases in which 6-year grad rates are 100% (might want to remove these)
+
+#took the code from EDA code and removed these from the data set for hypothesis testing: 
+
+id_cols <- c("unitid", "institution.name.x", "institution_entity_name_hd2020", "state.abbreviation_hd2020", "city.location.of.institution_hd2020",
+             "zip.code_hd2020", "institutional.category_hd2020")
+full_grad_rate <- df %>% subset(gradrate_ba_6yrstotal == 100) %>% dplyr::select(append(id_cols, colnames(df)[grep("grad(uation.)?rate", colnames(df))]))
+
+df_subset  <- df %>% slice(-c(71,571, 621, 682, 686))
+
+write.csv(df_subset, "../data/data_merged_df.csv", row.names = FALSE)
+```
+
+
+
+###Pell-Grant recipients are graduating at *higher* rates than the general student body?
+Ho: There is no signification difference between the average graduation rates between pell grant recipients and the general student body. 
+
+Ha: Pell grant recipients have a significantly lower average graduation rates than the general student body. 
+
+
+```{r}
+gen_body <- df_subset$gradrate_ba_6yrstotal
+pell_rate <- df_subset$pell.grant.recipients_.overall.graduation.rate.within.150.percent.of.normal.time
+
+t.test(pell_rate, gen_body, alt="less")
+
+```
+
+###Pell-Grant recipients are graduating at *higher* rates than the general student body based on  dimension of school size
+
+
+Ho: There is no significant difference between Pell-Grant recipients graduation rates at small and larger schools
+
+Ha:Pell-Grant recipients at smaller schools have higher graduation rates than those at larger schools
+ 
+```{r}
+
+```
+
+
+
+###Women graduate at higher rates than men 
+
+Ho: There is no signification difference between the average graduation rates between men and women
+
+Ha: Women have a significantly higher average graduation rates than men.
+
+
+```{r}
+grad_wom <- df_subset$gradrate_ba_6yrswomen
+
+grad_men <- df_subset$gradrate_ba_6yrsmen
+
+t.test(grad_wom, grad_men, alt="greater")
+
+```
+
+###Black students graduate at higher rates than white students
+
+
+Ho: There is no signification difference between the average graduation rates between black and white students.
+
+Ha: Black students have a significantly lower average graduation rates than white students.
+
+
+```{r}
+bla_grad <- df_subset$gradrate_ba_6yrsblack_non.hispanic
+nonbla_grad <- df_subset$gradrate_ba_6yrswhite_non.hispanic
+
+t.test(bla_grad, nonbla_grad, alt="less")
+
+```
+###Hispanic students graduate at higher rates than white students
+
+Ho: There is no signification difference between the average graduation rates between hispanic and non-hispanic students.
+
+Ha: Hispanic students have a significantly lower average graduation rates than non-hispanic students.
+
+
+```{r}
+hisp_grad <- df_subset$gradrate_ba_6yrshispanic
+
+all_nonhisp_grad <- append(df_subset$gradrate_ba_6yrswhite_non.hispanic,  nonbla_grad)
+
+t.test(all_nonhisp_grad, nonhisp_grad, alt="less")
+
+
+
+
+all_nonhisp_grad <-df_subset$gradrate_ba_6yrswhite_non.hispanic
+
+t.test(hisp_grad, nonhisp_grad, alt="less")
+```
+
