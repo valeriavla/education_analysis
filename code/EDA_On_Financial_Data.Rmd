@@ -1,0 +1,106 @@
+---
+title: "EDA_On_Financial_Data"
+output: html_document
+date: "2022-12-02"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(plyr)
+library(tidyverse)
+library(ggplot2)
+library(ISLR2)
+library(leaps)
+library(caret)
+
+df <- read.csv("../data/all_data_merged_df(NEW).csv", check.names = FALSE)
+
+colnames(df)
+```
+
+
+```{r}
+ggplot(df, aes(x=gradrate_ba_6yrs_total, y=endowment_total, color = sector_of_institution)) + 
+  geom_point(aes(size=undergraduate_enrollment, fill = sector_of_institution), colour="white",pch=21) +  labs(y='Total Endowment', x='6-Year Graduation Rate All Students') + ggtitle("Comparing Overall Graduation Rates to\nTotal Endowment")
+```
+
+```{r}
+# Get all expenditures as % of revenue
+data_to_analyze <- subset(df, select = c(gradrate_ba_6yrs_total, endowment_total, finances_spent_research, finances_spent_student_services, finances_spent_public_service, finances_spent_academic_support, finances_spent_instruction, revenue_total) )
+
+# turning all expenditures into % of revenue
+data_to_analyze$finances_spent_research <- (data_to_analyze$finances_spent_research/data_to_analyze$revenue_total)*100
+data_to_analyze$finances_spent_student_services <- (data_to_analyze$finances_spent_student_services/data_to_analyze$revenue_total)*100
+data_to_analyze$finances_spent_public_service <- (data_to_analyze$finances_spent_public_service/data_to_analyze$revenue_total)*100
+data_to_analyze$finances_spent_academic_support <- (data_to_analyze$finances_spent_academic_support/data_to_analyze$revenue_total)*100
+data_to_analyze$finances_spent_instruction <- (data_to_analyze$finances_spent_instruction/data_to_analyze$revenue_total)*100
+
+head(data_to_analyze)
+```
+
+
+```{r}
+set.seed(12)
+
+# DATA CLEANING 
+data_to_analyze <- subset(data_to_analyze, select = c(gradrate_ba_6yrs_total, endowment_total, finances_spent_research, finances_spent_student_services, finances_spent_public_service, finances_spent_academic_support, finances_spent_instruction, revenue_total) )
+
+index <- 1:ncol(data_to_analyze)
+data_to_analyze[ , index] <- lapply(data_to_analyze[ , index], as.numeric)
+
+
+# TRAIN MODEL ON TRAINING SET + VALIDATE USING A VALIDATION SET
+training.samples <- data_to_analyze$gradrate_ba_6yrs_total %>%
+  createDataPartition(p = 0.8, list = FALSE)
+
+
+train.data  <- data_to_analyze[training.samples, ]
+test.data <- data_to_analyze[-training.samples, ]
+
+model1 <- lm(gradrate_ba_6yrs_total ~ .^2, data = train.data)
+summary(model1)
+```
+
+```{r}
+boxplot(data_to_analyze$finances_spent_research, data_to_analyze$finances_spent_student_services, data_to_analyze$finances_spent_public_service, data_to_analyze$finances_spent_academic_support, data_to_analyze$finances_spent_instruction, col = c("red", "orange", "yellow", "green", "blue"), names = c("Research", "Student Services", "Public Service", "Academic Support", "Instruction"), main = "Reported Expenditures as Percent of Revenue", xlab = "Budget Item", ylab = "Percent of Revenue Spent", cex.axis=0.8)
+```
+
+```{r}
+# Adding sector of institution + undergraduate enrollment back in for visualizations
+
+data_to_analyze <- subset(df, select = c(gradrate_ba_6yrs_total, endowment_total, finances_spent_research, finances_spent_student_services, finances_spent_public_service, finances_spent_academic_support, finances_spent_instruction, revenue_total, sector_of_institution, undergraduate_enrollment) )
+
+# turning all expenditures into % of revenue (again)
+data_to_analyze$finances_spent_research <- (data_to_analyze$finances_spent_research/data_to_analyze$revenue_total)*100
+data_to_analyze$finances_spent_student_services <- (data_to_analyze$finances_spent_student_services/data_to_analyze$revenue_total)*100
+data_to_analyze$finances_spent_public_service <- (data_to_analyze$finances_spent_public_service/data_to_analyze$revenue_total)*100
+data_to_analyze$finances_spent_academic_support <- (data_to_analyze$finances_spent_academic_support/data_to_analyze$revenue_total)*100
+data_to_analyze$finances_spent_instruction <- (data_to_analyze$finances_spent_instruction/data_to_analyze$revenue_total)*100
+
+
+```
+
+```{r}
+ggplot(data_to_analyze, aes(x=gradrate_ba_6yrs_total, y=finances_spent_research, color = sector_of_institution)) + 
+  geom_point(aes(size=undergraduate_enrollment, fill = sector_of_institution), colour="white",pch=21) +  labs(y='% Finances Spent on Research', x='6-Year Graduation Rate All Students') + ggtitle("Comparing Overall Graduation Rates to\nFinances Spent on Research")
+```
+```{r}
+ggplot(data_to_analyze, aes(x=gradrate_ba_6yrs_total, y=finances_spent_student_services, color = sector_of_institution)) + 
+  geom_point(aes(size=undergraduate_enrollment, fill = sector_of_institution), colour="white",pch=21) +  labs(y='% Finances Spent on Student Services', x='6-Year Graduation Rate All Students') + ggtitle("Comparing Overall Graduation Rates to\nFinances Spent on Student Services")
+```
+```{r}
+ggplot(data_to_analyze, aes(x=gradrate_ba_6yrs_total, y=finances_spent_public_service, color = sector_of_institution)) + 
+  geom_point(aes(size=undergraduate_enrollment, fill = sector_of_institution), colour="white",pch=21) +  labs(y='% Finances Spent on Public Service', x='6-Year Graduation Rate All Students') + ggtitle("Comparing Overall Graduation Rates to\nFinances Spent on Public Service")
+```
+```{r}
+ggplot(data_to_analyze, aes(x=gradrate_ba_6yrs_total, y=finances_spent_academic_support, color = sector_of_institution)) + 
+  geom_point(aes(size=undergraduate_enrollment, fill = sector_of_institution), colour="white",pch=21) +  labs(y='% Finances Spent on Academic Support', x='6-Year Graduation Rate All Students') + ggtitle("Comparing Overall Graduation Rates to\nFinances Spent on Academic Support")
+```
+```{r}
+ggplot(data_to_analyze, aes(x=gradrate_ba_6yrs_total, y=finances_spent_instruction, color = sector_of_institution)) + 
+  geom_point(aes(size=undergraduate_enrollment, fill = sector_of_institution), colour="white",pch=21) +  labs(y='% Finances Spent on Instruction', x='6-Year Graduation Rate All Students') + ggtitle("Comparing Overall Graduation Rates to\nFinances Spent on Instruction")
+```
+
