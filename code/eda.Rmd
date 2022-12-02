@@ -4,52 +4,145 @@ library(plyr)
 library(tidyverse)
 library(ggplot2)
 
+df <- read.csv("../data/SY18-19_all_variables_Data.csv", check.names = FALSE)
+value_mapping <- read.csv("../data/SY18-19_all_variables_ValueLabels.csv")
 
-
-df <- read.csv("../data/enrollement_completer.csv")
-df1 <- read.csv("../data/grad_completion_ratesData_11-16-2022---690.csv")
-finance_data <- read.csv("../data/cost_finances_Data_12-1-2022---689.csv")
-
-# clean up column names
-colnames(df1) <- gsub("\\.\\.", "_", tolower(gsub("Graduation.rate...Bachelor.degree.within.6.years..", "gradrate_ba_6yrs", gsub("..DRVGR2020_RV.", "", colnames(df1)))))
-colnames(df) <- gsub("..EF2013A..All.students..Undergraduate.total.", "undegrad_enrollment_count_2013", tolower(colnames(df)))
-
-# combine graduation rates with the base dataframe
-df <- merge(df, df1, by = 'unitid', all.x = TRUE)
-colnames(df) <- gsub("\\.$", "", colnames(df))
-print(nrow(df))
+# df5 <- read.csv('../data/completers.csv')
+# 
+# df <- read.csv("../data/enrollement_completer.csv")
+# df1 <- read.csv("../data/grad_completion_ratesData_11-16-2022---690.csv")
+# 
+# finance_data <- read.csv("../data/cost_finances_Data_12-1-2022---689.csv")
 
 # convert the sector into the actual names
-df$sector <- mapvalues(df$sector, from = c(1, 2, 3), to = c("Public", "Private not-for-profit", "Private for-profit"))
+for (i in unique(value_mapping$VariableName)){
+  temp_map_val <- value_mapping %>% subset(VariableName == i)
+  df[[i]] <- mapvalues(df[[i]], from = temp_map_val$Value, to = temp_map_val$ValueLabel)
+}
 
-# join in with the finance data which can be used for regressions
-finance_data <- finance_data %>% dplyr::rename(unitid=UnitID)
-df <- merge(df, finance_data, by = 'unitid', all.x = TRUE)
 
-write.csv(df, "../data/all_data_merged_df.csv", row.names = FALSE)
+# clean up column names
+colnames(df) <- gsub(" - ", "_", tolower(colnames(df)))
+colnames(df) <- gsub("-|[[:space:]]+", "_", colnames(df))
+colnames(df) <- gsub("\\(|\\)|\\:", "", colnames(df))
+colnames(df) <- gsub("\\_(sfa1819|2018_19|drvgr2018|drvef2018|hd2018|2018_ef2018d|f1819|al2019|gasb_drvf2019|ic2018).*$", "", tolower(colnames(df)))
+colnames(df) <- gsub("graduation_rate_bachelor_degree_within_6_years", "gradrate_ba_6yrs", colnames(df))
+
+# combine the financial columns which were broken up for public and private schools into one
+dupe_vals <- grep('value_of_endowment_assets_at_the_beginning_of_the_fiscal_year', colnames(df))
+colnames(df)[dupe_vals[1]] <- 'value_of_endowment_assets_at_the_beginning_of_the_fiscal_year1'
+colnames(df)[dupe_vals[2]] <- 'value_of_endowment_assets_at_the_beginning_of_the_fiscal_year2'
+
+df$endowment_total <- ifelse(is.na(df$value_of_endowment_assets_at_the_beginning_of_the_fiscal_year1),
+                             df$value_of_endowment_assets_at_the_beginning_of_the_fiscal_year2,
+                             df$value_of_endowment_assets_at_the_beginning_of_the_fiscal_year1)
+df$finances_spent_research <- ifelse(is.na(df$research_current_year_total),
+                                     df$research_total_amount,
+                                     df$research_current_year_total)
+df$finances_spent_student_services <- ifelse(is.na(df$student_service_total_amount),
+                                             df$student_services_current_year_total,
+                                             df$student_service_total_amount)
+df$finances_spent_public_service <- ifelse(is.na(df$public_service_current_year_total),
+                                           df$public_service_total_amount,
+                                           df$public_service_current_year_total)
+df$finances_spent_academic_support <- ifelse(is.na(df$academic_support_current_year_total),
+                                             df$academic_support_total_amount,
+                                             df$academic_support_current_year_total)
+df$finances_spent_instruction <- ifelse(is.na(df$instruction_current_year_total),
+                                        df$instruction_total_amount,
+                                        df$instruction_current_year_total)
+df$revenue_total <- ifelse(is.na(df$total_revenues_and_investment_return_total),
+                           df$total_all_revenues_and_other_additions,
+                           df$total_revenues_and_investment_return_total)
+
+drop_cols <- c('value_of_endowment_assets_at_the_beginning_of_the_fiscal_year1', 'value_of_endowment_assets_at_the_beginning_of_the_fiscal_year2', 'research_current_year_total', 'research_total_amount', 'student_service_total_amount', 'student_services_current_year_total', 'public_service_current_year_total', 'public_service_total_amount', 'academic_support_current_year_total', 'academic_support_total_amount', 'instruction_current_year_total', 'instruction_total_amount', 'total_revenues_and_investment_return_total', 'total_all_revenues_and_other_additions', '')
+
+df <- df[, !(colnames(df) %in% drop_cols)]
+
+# remove columns that have NA's
+pre_df <- nrow(df)
+df <- df %>% subset(!is.na(df$undergraduate_enrollment) & !is.na(df$gradrate_ba_6yrs_total))
+
+remove_any_nas <- c("undergraduate_enrollment",
+                    "gradrate_ba_6yrs_total",
+                    "percent_of_undergraduate_enrollment_that_are_black_or_african_american",
+                    "percent_of_undergraduate_enrollment_that_are_hispanic/latino",
+                    "percent_of_undergraduate_students_awarded_pell_grants"
+                    )
+
+df1 %>% filter(if_all(remove_any_nas), ~ is.na(.x))
+
+
+
+paste("Removed", pre_df-nrow(df), "rows with null undergraduate enrollment and graduation rates data.")
+
+
+write.csv(df, "../data/all_data_merged_df(NEW).csv", row.names = FALSE)
 
 ```
 
+
+```{r}
+# enrollemnt size histogram
+hist(df[['undergraduate_enrollment']],
+     "Histogram of Undergraduate Enrollment for\nAll 4-Year Colleges in the United States",
+     col='green',
+     xlab="Number of Undegraduated Enrolled in 2018-19")
+abline(v=mean(df[['undergraduate_enrollment']]),col="blue",lwd=2)
+
+```
+
+Visualizing the distribution of enrollment size and graduation rates enabled us to uncover outliers that 
+
+```{r}
+# look into outliers
+df %>% subset(undergraduate_enrollment > 40000) %>% select(institution_name, undergraduate_enrollment, all_programs_offered_completely_via_distance_education, percent_of_undergraduate_students_enrolled_exclusively_in_distance_education_courses) %>% arrange(desc(undergraduate_enrollment))
+# found out that these are all online colleges. question - would we want to include entirely online colleges? we should at least pull in that data point
+```
+```{r}
+# redo histogram without biggest outliers and take the log
+hist(log(df[['undergraduate_enrollment']]),
+     main="Histogram of Undergraduate Enrollment for\nAll 4-Year Colleges in the United States",
+     col='green',
+     xlab="Number of Undegraduates Enrolled in 2018-19")
+abline(v=mean(log(df[['undergraduate_enrollment']])),col="blue",lwd=2)
+
+```
+
+In order to turn undergraduate enrollment into a normal distribution, I took the log of the data. 
+
+```{r}
+# perform normal test
+```
 
 
 
 ```{r}
 # graduation rates histogram
-hist(df[['gradrate_ba_6yrstotal']],
+hist(df[['gradrate_ba_6yrs_total']],
      main="Histogram of Graduation Rates for\n4-Year Colleges in the United States",
+     col='green',
      xlab="Graduation Rate")
 
 
-boxplot(df[['gradrate_ba_6yrstotal']],
+boxplot(df[['gradrate_ba_6yrs_total']],
         main="Boxplot of All 4-Year Colleges in the U.S.",
+        col='green',
         ylab="Graduation Rate")
 ```
+```{r}
+# look out graduate rate outliers
+
+df %>% subset(gradrate_ba_6yrs_total < 10) %>% select(institution_name, undergraduate_enrollment, sector_of_institution, institutional_category, gradrate_ba_6yrs_total, gradrate_ba_6yrs_black_non_hispanic, gradrate_ba_6yrs_white_non_hispanic)
+```
+
 
 ```{r}
 
-boxplot(df[['gradrate_ba_6yrsmen']],
-        df[['gradrate_ba_6yrswomen']],
+boxplot(df[['gradrate_ba_6yrs_men']],
+        df[['gradrate_ba_6yrs_women']],
         names=c("Men Graduation Rate", "Women Graduation Rate"),
+        col=c('purple', 'orange'),
         main="Boxplot of All 4-Year Colleges in the U.S. by Gender",
         xlab='Gender',
         ylab="Graduation Rate")
@@ -62,29 +155,29 @@ boxplot(df[['gradrate_ba_6yrsmen']],
 ```{r}
 # any points above the red dotted lines are schools where Pell-Grant recipients are graduating at *higher* rates than the general student body
 # we added the dimension of school size to the mix and as you can see, majority of the schools where Pell-Grant recipients are graduating at much higher rates than the general student body are smaller sized schools
-ggplot(df, aes(x=gradrate_ba_6yrstotal, y=pell.grant.recipients_.overall.graduation.rate.within.150.percent.of.normal.time, color = sector)) + 
-  geom_point(aes(size=tot_enroll_2013)) + geom_abline(intercept=0, slope=1, linetype='dashed', color='red') + labs(y='Pell Recipients 6-Year Graduation Rate', x='6-Year Graduation Rate All Students') + ggtitle("Comparing Overall Graduation Rates to\nPell Recipients Graduation Rates")
+ggplot(df, aes(x=gradrate_ba_6yrs_total, y=pell_grant_recipients_overall_graduation_rate_within_150_percent_of_normal_time, color = sector_of_institution)) + 
+  geom_point(aes(size=undergraduate_enrollment, fill = sector_of_institution), colour="white",pch=21) + geom_abline(intercept=0, slope=1, linetype='dashed', color='red') + labs(y='Pell Recipients 6-Year Graduation Rate', x='6-Year Graduation Rate All Students') + ggtitle("Comparing Overall Graduation Rates to\nPell Recipients Graduation Rates")
 
 ```
 
 ```{r}
 # any points above the red dotted lines are schools where women graduate at higher rates than men
-ggplot(df, aes(y=gradrate_ba_6yrswomen, x=gradrate_ba_6yrsmen, color = sector)) + 
-  geom_point(aes(size=tot_enroll_2013)) + geom_abline(intercept=0, slope=1, linetype='dashed', color='red') + labs(x='6-Year Graduation Rate for Men', y='6-Year Graduation Rate for Women') + ggtitle("Comparing Graduation Rates of Men vs. Women")
+ggplot(df, aes(y=gradrate_ba_6yrs_women, x=gradrate_ba_6yrs_men, color = sector_of_institution)) + 
+  geom_point(aes(size=undergraduate_enrollment, fill = sector_of_institution), colour="white",pch=21) + geom_abline(intercept=0, slope=1, linetype='dashed', color='red') + labs(x='6-Year Graduation Rate for Men', y='6-Year Graduation Rate for Women') + ggtitle("Comparing Graduation Rates of Men vs. Women")
 
 ```
 
 ```{r}
 # any points above the red dotted lines are schools where black students graduate at higher rates than white students
-ggplot(df, aes(y=gradrate_ba_6yrsblack_non.hispanic, x=gradrate_ba_6yrswhite_non.hispanic, color = sector)) + 
-  geom_point(aes(size=tot_enroll_2013)) + geom_abline(intercept=0, slope=1, linetype='dashed', color='red') + labs(x='6-Year Graduation Rate for White Students', y='6-Year Graduation Rate for Black Non-Hispanic Students') + ggtitle("Comparing Graduation Rates of White and Black Students")
+ggplot(df, aes(y=gradrate_ba_6yrs_black_non_hispanic, x=gradrate_ba_6yrs_white_non_hispanic)) + 
+  geom_point(aes(size=undergraduate_enrollment, fill = sector_of_institution), colour="white", pch=21) + geom_abline(intercept=0, slope=1, linetype='dashed', color='red') + labs(x='6-Year Graduation Rate for White Students', y='6-Year Graduation Rate for Black Non-Hispanic Students') + ggtitle("Comparing Graduation Rates of White and Black Students")
 
 ```
 
 ```{r}
 # any points above the red dotted lines are schools where hispanic students graduate at higher rates than white students
-ggplot(df, aes(y=gradrate_ba_6yrshispanic, x=gradrate_ba_6yrswhite_non.hispanic, color = sector)) + 
-  geom_point(aes(size=tot_enroll_2013)) + geom_abline(intercept=0, slope=1, linetype='dashed', color='red') + labs(x='6-Year Graduation Rate for White Non-Hispanic Students', y='6-Year Graduation Rate for Hispanic Students') + ggtitle("Comparing Graduation Rates of White and Hispanic Students")
+ggplot(df, aes(y=gradrate_ba_6yrs_hispanic, x=gradrate_ba_6yrs_white_non_hispanic, color = sector_of_institution)) + 
+  geom_point(aes(size=undergraduate_enrollment, fill = sector_of_institution), colour="white",pch=21) + geom_abline(intercept=0, slope=1, linetype='dashed', color='red') + labs(x='6-Year Graduation Rate for White Non-Hispanic Students', y='6-Year Graduation Rate for Hispanic Students') + ggtitle("Comparing Graduation Rates of White and Hispanic Students")
 
 ```
 
@@ -95,12 +188,5 @@ id_cols <- c("unitid", "institution.name.x", "institution_entity_name_hd2020", "
              "zip.code_hd2020", "institutional.category_hd2020")
 full_grad_rate <- df %>% subset(gradrate_ba_6yrstotal == 100) %>% dplyr::select(append(id_cols, colnames(df)[grep("grad(uation.)?rate", colnames(df))]))
 ```
-
-
-```{r}
-# adding in continuous variables to be used in regression
-
-```
-
 
 

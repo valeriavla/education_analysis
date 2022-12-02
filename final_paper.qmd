@@ -1,0 +1,48 @@
+---
+title: "511 Final Project Paper"
+format: pdf
+editor: visual
+---
+
+## **Introduction & Background**
+
+\[\[intro paragraph about how this country\'s education system was built in order to ensure the success of white male students ... And how obtaining a bachelor\'s degree still remains one of the more sure fire ways to upward mobility but there are still a lot of barriers to access and success in college\]\] 
+
+According to the latest report from the National Student Clearinghouse Research Center on Six Year Completion Rates at 4-Year Public and Private Not-for-Profit colleges and universities, there is a 31% gap in degree attainment between Black and White students. \[[source](https://nscresearchcenter.org/wp-content/uploads/Completions_Report_2022.pdf)\] Students from low-poverty high schools were more than twice as likely to earn a degree within six years of high school graduation (60%) as their counterparts from high-poverty schools (24%). \[[source](https://nscresearchcenter.org/wp-content/uploads/2021_HSBenchmarksReport.pdf)\]
+
+## Data Science Questions
+
+1.  Does low-income status (Pell eligible status) have an impact on college graduation?
+
+2.  Is there a significant difference between students from different income brackets\' ability to pay back student loans within \_\_ of time? 
+
+3.  Does racial diversity in an institution of higher education raise the average graduation rate of students?
+
+4.  Is there a significant difference between the graduation rate of women who come from low-income backgrounds and men who come from low-income backgrounds?
+
+5.  Is there a significant difference between the graduation rate for underrepresented students from schools that have different targeted supports for that population?
+
+## Methodology
+
+### Data Gathering
+
+To ensure a comprehensive representation of postsecondary data in the United States, data was gathered from Department of Education Inst \*\*\* (IPEDS) and the Federal Student Aid Program (FSA) using the Urban Institute Education Application Programming Interface (API), a freely available online API. The API includes all secondary and postsecondary data collected by the US Federal Government built on a REST framework and contains R and STATA libraries.
+
+### Data Cleaning
+
+![](https://lh4.googleusercontent.com/LVh5GNWlZucXFrkHOOHxN03_-G-M9Iza9wegojDDqxBiEfmIes8WOFiujPHsUthhVjQEW1LrGWauZ72qJ0gMRdqDZOsv7gJ1JysApmRBrzaUmj097GP5x-tH-TIsuOMdFBrwvd-Uj2prWEXTHTvjV6JB8iXHQ5qAp_hEPNQ04SMIBoUuI20H08f0fTEiDw)
+
+From the 8 tables of data that the API gathered, only three were deemed to have information that was relevant to the original data science questions.  Those tables had information pertinent to completion counts, enrollment counts, graduation rates, and further information about the specifics of each school. First, the dataset was subset to specify students who completed their education in the year 2019. This data had completion counts based on race and gender. A new column was added to the data set, race_sex, which combined the completion counts based on race and sex. To reduce data redundancy, both race and sex columns were then dropped. The data set was then converted to a wide format and merged with a second data set which had information on enrollment counts for the colleges in the year 2013 based on a column called UnitID, a unique identifier for each college. As the original data set contained information on graduate programs and 2-year colleges, the data was further subset to focus on 4-year institutions. Some of the column names from the resulting table were then renamed for clarification. An additional dataset was then merged also based on UnitID to give the graduation rates based on race and sex for all schools.
+
+### Exploratory Data Analysis
+
+```{r}
+1 + 1
+```
+
+You can add options to executable code like this
+
+```{r}
+#| echo: false
+2 * 2
+```
