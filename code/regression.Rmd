@@ -1,0 +1,32 @@
+---
+title: "Single and Multiple Linear Regression"
+author: "Valeria Vera"
+date: "2022-12-02"
+output: html_document
+---
+
+```{r}
+df <- read.csv('../data/all_data_merged_df.csv')
+library(tidyverse)
+```
+
+Linear regression of two variables
+```{r}
+model <- lm(y~x)
+print(summary(model))
+
+#predict with the defined model
+a <- data.frame(x = 170)
+result <-  predict(model,a)
+print(result)
+
+plot(y,x,col = "blue",main = "Height & Weight Regression",
+     abline(lm(x~y)),cex = 1.3,pch = 16,xlab = "Weight in Kg",ylab = "Height in cm")
+```
+
+Multiple linear regression
+```{r}
+model <- lm(sales ~ youtube + facebook + newspaper, data = marketing)
+print(summary(model))
+```
+
