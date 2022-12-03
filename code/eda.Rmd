@@ -7,6 +7,7 @@
 library(plyr)
 library(tidyverse)
 library(ggplot2)
+library(gtools)
 
 raw_df <- read.csv("../data/SY18-19_all_variables_Data.csv", check.names = FALSE)
 df <- raw_df
@@ -84,13 +85,15 @@ for (i in remove_any_nas){
 enroll_grad <- c("percent_of_undergraduate_enrollment_that_are_black_or_african_american" = "gradrate_ba_6yrs_black_non_hispanic",
                     "percent_of_undergraduate_enrollment_that_are_hispanic_latino" = "gradrate_ba_6yrs_hispanic",
                     "percent_of_undergraduate_enrollment_that_are_american_indian_or_alaska_native" = "gradrate_ba_6yrs_american_indian_or_alaska_native",
-                    "percent_of_undergraduate_students_awarded_pell_grants" = "pell_grant_recipients_overall_graduation_rate_within_150_percent_of_normal_time")
+                    "percent_of_undergraduate_students_awarded_pell_grants" = "pell_grant_recipients_overall_graduation_rate_within_150_percent_of_normal_time"
+                 )
 
 for (i in names(enroll_grad)){
   df <- df %>% subset(ifelse(!is.na(df[[i]]) & (df[[i]] != 0),
                              !is.na(df[[enroll_grad[[i]]]]),
                              TRUE))
 }
+
 
 # remove any rows if they do not have *any* students from underrepresented groups
 df <- df %>% mutate(across(where(is.numeric), ~replace_na(.x, 0))) %>% mutate(sum_subgroups = percent_of_undergraduate_enrollment_that_are_black_or_african_american + percent_of_undergraduate_enrollment_that_are_hispanic_latino + percent_of_undergraduate_students_awarded_pell_grants + percent_of_undergraduate_enrollment_that_are_american_indian_or_alaska_native)
@@ -100,6 +103,18 @@ df <- df %>% subset(sum_subgroups != 0)
 
 # compute mean
 df <- df %>% mutate(mean_subgroups = (percent_of_undergraduate_enrollment_that_are_black_or_african_american + percent_of_undergraduate_enrollment_that_are_hispanic_latino + percent_of_undergraduate_students_awarded_pell_grants + percent_of_undergraduate_enrollment_that_are_american_indian_or_alaska_native)/4)
+
+# convert mean subgroups to quantiles
+df <- df %>% mutate(diversity_quantiles = quantcut(df$mean_subgroups, q = 4, na.rm = TRUE))
+df$diversity_quantiles <- mapvalues(df$diversity_quantiles,
+                                    from = sort(unique(quantcut(df$mean_subgroups, q = 4, na.rm = TRUE))),
+                                    to = paste("diversity quantile", 1:4))
+
+# convert the sector into the actual names
+for (i in unique(value_mapping$VariableName)){
+  temp_map_val <- value_mapping %>% subset(VariableName == i)
+  df[[i]] <- mapvalues(df[[i]], from = temp_map_val$Value, to = temp_map_val$ValueLabel)
+}
 
 
 paste("Removed", pre_df-nrow(df), "rows with missing undergraduate enrollment and graduation rates data.")
