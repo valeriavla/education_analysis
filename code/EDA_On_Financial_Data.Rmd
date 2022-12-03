@@ -15,16 +15,19 @@ library(ggplot2)
 library(ISLR2)
 library(leaps)
 library(caret)
+library(gridExtra)
+library(cowplot)
+library(RGraphics)
+library(ggpmisc)
 
 df <- read.csv("../data/all_data_merged_df(NEW).csv", check.names = FALSE)
-
-colnames(df)
 ```
 
 
 ```{r}
-ggplot(df, aes(x=gradrate_ba_6yrs_total, y=endowment_total, color = sector_of_institution)) + 
-  geom_point(aes(size=undergraduate_enrollment, fill = sector_of_institution), colour="white",pch=21) +  labs(y='Total Endowment', x='6-Year Graduation Rate All Students') + ggtitle("Comparing Overall Graduation Rates to\nTotal Endowment")
+endowment <- ggplot(df, aes(x=gradrate_ba_6yrs_total, y=endowment_total, color = sector_of_institution)) + stat_poly_line() +
+  stat_poly_eq() +
+  geom_point(aes(size=undergraduate_enrollment, fill = sector_of_institution), colour="white", pch=21) +  labs(y='Total Endowment', x='6-Year Graduation Rate All Students') + ggtitle("Comparing Overall Graduation Rates to\nTotal Endowment")
 ```
 
 ```{r}
@@ -84,23 +87,46 @@ data_to_analyze$finances_spent_instruction <- (data_to_analyze$finances_spent_in
 ```
 
 ```{r}
-ggplot(data_to_analyze, aes(x=gradrate_ba_6yrs_total, y=finances_spent_research, color = sector_of_institution)) + 
-  geom_point(aes(size=undergraduate_enrollment, fill = sector_of_institution), colour="white",pch=21) +  labs(y='% Finances Spent on Research', x='6-Year Graduation Rate All Students') + ggtitle("Comparing Overall Graduation Rates to\nFinances Spent on Research")
-```
-```{r}
-ggplot(data_to_analyze, aes(x=gradrate_ba_6yrs_total, y=finances_spent_student_services, color = sector_of_institution)) + 
-  geom_point(aes(size=undergraduate_enrollment, fill = sector_of_institution), colour="white",pch=21) +  labs(y='% Finances Spent on Student Services', x='6-Year Graduation Rate All Students') + ggtitle("Comparing Overall Graduation Rates to\nFinances Spent on Student Services")
-```
-```{r}
-ggplot(data_to_analyze, aes(x=gradrate_ba_6yrs_total, y=finances_spent_public_service, color = sector_of_institution)) + 
-  geom_point(aes(size=undergraduate_enrollment, fill = sector_of_institution), colour="white",pch=21) +  labs(y='% Finances Spent on Public Service', x='6-Year Graduation Rate All Students') + ggtitle("Comparing Overall Graduation Rates to\nFinances Spent on Public Service")
-```
-```{r}
-ggplot(data_to_analyze, aes(x=gradrate_ba_6yrs_total, y=finances_spent_academic_support, color = sector_of_institution)) + 
-  geom_point(aes(size=undergraduate_enrollment, fill = sector_of_institution), colour="white",pch=21) +  labs(y='% Finances Spent on Academic Support', x='6-Year Graduation Rate All Students') + ggtitle("Comparing Overall Graduation Rates to\nFinances Spent on Academic Support")
-```
-```{r}
-ggplot(data_to_analyze, aes(x=gradrate_ba_6yrs_total, y=finances_spent_instruction, color = sector_of_institution)) + 
-  geom_point(aes(size=undergraduate_enrollment, fill = sector_of_institution), colour="white",pch=21) +  labs(y='% Finances Spent on Instruction', x='6-Year Graduation Rate All Students') + ggtitle("Comparing Overall Graduation Rates to\nFinances Spent on Instruction")
+research <- ggplot(data_to_analyze, aes(x=gradrate_ba_6yrs_total, y=finances_spent_research, color = sector_of_institution)) + stat_poly_line() +
+  stat_poly_eq() +
+  geom_point(aes(size=undergraduate_enrollment, fill = sector_of_institution), colour="white", pch=21) +  labs(y='% Finances Spent on Research', x='6-Year Graduation Rate All Students') + ggtitle("Comparing Overall Graduation Rates to\nFinances Spent on Research")
 ```
 
+```{r}
+student_services <- ggplot(data_to_analyze, aes(x=gradrate_ba_6yrs_total, y=finances_spent_student_services, color = sector_of_institution)) + stat_poly_line() +
+  stat_poly_eq() +
+  geom_point(aes(size=undergraduate_enrollment, fill = sector_of_institution), colour="white", pch=21) +  labs(y='% Finances Spent on Student Services', x='6-Year Graduation Rate All Students') + ggtitle("Comparing Overall Graduation Rates to\nFinances Spent on Student Services")
+```
+
+```{r}
+public_service <- ggplot(data_to_analyze, aes(x=gradrate_ba_6yrs_total, y=finances_spent_public_service, color = sector_of_institution)) + stat_poly_line() +
+  stat_poly_eq() +
+  geom_point(aes(size=undergraduate_enrollment, fill = sector_of_institution), colour="white", pch=21) +  labs(y='% Finances Spent on Public Service', x='6-Year Graduation Rate All Students') + ggtitle("Comparing Overall Graduation Rates to\nFinances Spent on Public Service")
+```
+
+```{r}
+academic_support <- ggplot(data_to_analyze, aes(x=gradrate_ba_6yrs_total, y=finances_spent_academic_support, color = sector_of_institution)) + stat_poly_line() +
+  stat_poly_eq() +
+  geom_point(aes(size=undergraduate_enrollment, fill = sector_of_institution), colour="white", pch=21) +  labs(y='% Finances Spent on Academic Support', x='6-Year Graduation Rate All Students') + ggtitle("Comparing Overall Graduation Rates to\nFinances Spent on Academic Support")
+```
+
+```{r}
+instruction <- ggplot(data_to_analyze, aes(x=gradrate_ba_6yrs_total, y=finances_spent_instruction, color = sector_of_institution)) +   stat_poly_line() +
+  stat_poly_eq() +
+  geom_point(aes(size=undergraduate_enrollment, fill = sector_of_institution), colour="white", pch=21) +  geom_smooth(method='lm', formula= y~x, color='red') + labs(y='% Finances Spent on Instruction', x='6-Year Graduation Rate All Students') + ggtitle("Comparing Overall Graduation Rates to\nFinances Spent on Instruction")
+```
+
+```{r}
+endowment
+research
+student_services
+public_service
+academic_support
+instruction
+```
+
+```{r}
+instruction <- ggplot(data_to_analyze, aes(x=gradrate_ba_6yrs_total, y=finances_spent_instruction, color = sector_of_institution)) +   stat_poly_line() +
+  stat_poly_eq() +
+  geom_point(aes(size=undergraduate_enrollment, fill = sector_of_institution), colour="white",pch=21) +  geom_smooth(method='lm', formula= y~x, color='red') + labs(y='% Finances Spent on Instruction', x='6-Year Graduation Rate All Students') + ggtitle("Comparing Overall Graduation Rates to\nFinances Spent on Instruction")
+```
