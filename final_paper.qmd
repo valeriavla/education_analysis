@@ -6,7 +6,7 @@ editor: visual
 
 ## **Introduction & Background**
 
-\[\[intro paragraph about how this country\'s education system was built in order to ensure the success of white male students ... And how obtaining a bachelor\'s degree still remains one of the more sure fire ways to upward mobility but there are still a lot of barriers to access and success in college\]\] 
+\[\[intro paragraph about how this country's education system was built in order to ensure the success of white male students ... And how obtaining a bachelor's degree still remains one of the more sure fire ways to upward mobility but there are still a lot of barriers to access and success in college\]\] 
 
 According to the latest report from the National Student Clearinghouse Research Center on Six Year Completion Rates at 4-Year Public and Private Not-for-Profit colleges and universities, there is a 31% gap in degree attainment between Black and White students. \[[source](https://nscresearchcenter.org/wp-content/uploads/Completions_Report_2022.pdf)\] Students from low-poverty high schools were more than twice as likely to earn a degree within six years of high school graduation (60%) as their counterparts from high-poverty schools (24%). \[[source](https://nscresearchcenter.org/wp-content/uploads/2021_HSBenchmarksReport.pdf)\]
 
@@ -14,7 +14,7 @@ According to the latest report from the National Student Clearinghouse Research 
 
 1.  Does low-income status (Pell eligible status) have an impact on college graduation?
 
-2.  Is there a significant difference between students from different income brackets\' ability to pay back student loans within \_\_ of time? 
+2.  Is there a significant difference between students from different income brackets' ability to pay back student loans within \_\_ of time? 
 
 3.  Does racial diversity in an institution of higher education raise the average graduation rate of students?
 

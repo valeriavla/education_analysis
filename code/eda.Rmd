@@ -1,18 +1,17 @@
 
+## Read in Data
+* Map column values according to data dictionary
+* Clean column names
+
 ```{r}
 library(plyr)
 library(tidyverse)
 library(ggplot2)
+library(gtools)
 
-df <- read.csv("../data/SY18-19_all_variables_Data.csv", check.names = FALSE)
+raw_df <- read.csv("../data/SY18-19_all_variables_Data.csv", check.names = FALSE)
+df <- raw_df
 value_mapping <- read.csv("../data/SY18-19_all_variables_ValueLabels.csv")
-
-# df5 <- read.csv('../data/completers.csv')
-# 
-# df <- read.csv("../data/enrollement_completer.csv")
-# df1 <- read.csv("../data/grad_completion_ratesData_11-16-2022---690.csv")
-# 
-# finance_data <- read.csv("../data/cost_finances_Data_12-1-2022---689.csv")
 
 # convert the sector into the actual names
 for (i in unique(value_mapping$VariableName)){
@@ -20,10 +19,9 @@ for (i in unique(value_mapping$VariableName)){
   df[[i]] <- mapvalues(df[[i]], from = temp_map_val$Value, to = temp_map_val$ValueLabel)
 }
 
-
 # clean up column names
 colnames(df) <- gsub(" - ", "_", tolower(colnames(df)))
-colnames(df) <- gsub("-|[[:space:]]+", "_", colnames(df))
+colnames(df) <- gsub("-|[[:space:]]+|/", "_", colnames(df))
 colnames(df) <- gsub("\\(|\\)|\\:", "", colnames(df))
 colnames(df) <- gsub("\\_(sfa1819|2018_19|drvgr2018|drvef2018|hd2018|2018_ef2018d|f1819|al2019|gasb_drvf2019|ic2018).*$", "", tolower(colnames(df)))
 colnames(df) <- gsub("graduation_rate_bachelor_degree_within_6_years", "gradrate_ba_6yrs", colnames(df))
@@ -33,6 +31,15 @@ dupe_vals <- grep('value_of_endowment_assets_at_the_beginning_of_the_fiscal_year
 colnames(df)[dupe_vals[1]] <- 'value_of_endowment_assets_at_the_beginning_of_the_fiscal_year1'
 colnames(df)[dupe_vals[2]] <- 'value_of_endowment_assets_at_the_beginning_of_the_fiscal_year2'
 
+```
+
+
+## Clean Data
+* Combine financial columns
+* Write Cleaned CSV file
+
+### Combine financial columns
+```{r}
 df$endowment_total <- ifelse(is.na(df$value_of_endowment_assets_at_the_beginning_of_the_fiscal_year1),
                              df$value_of_endowment_assets_at_the_beginning_of_the_fiscal_year2,
                              df$value_of_endowment_assets_at_the_beginning_of_the_fiscal_year1)
@@ -58,78 +65,109 @@ df$revenue_total <- ifelse(is.na(df$total_revenues_and_investment_return_total),
 drop_cols <- c('value_of_endowment_assets_at_the_beginning_of_the_fiscal_year1', 'value_of_endowment_assets_at_the_beginning_of_the_fiscal_year2', 'research_current_year_total', 'research_total_amount', 'student_service_total_amount', 'student_services_current_year_total', 'public_service_current_year_total', 'public_service_total_amount', 'academic_support_current_year_total', 'academic_support_total_amount', 'instruction_current_year_total', 'instruction_total_amount', 'total_revenues_and_investment_return_total', 'total_all_revenues_and_other_additions', '')
 
 df <- df[, !(colnames(df) %in% drop_cols)]
+```
 
+### Remove rows with missing values on enrollment and graduation rates
+```{r}
 # remove columns that have NA's
 pre_df <- nrow(df)
-df <- df %>% subset(!is.na(df$undergraduate_enrollment) & !is.na(df$gradrate_ba_6yrs_total))
+print(paste("Total # of schools in dataset:", nrow(df)))
 
 remove_any_nas <- c("undergraduate_enrollment",
-                    "gradrate_ba_6yrs_total",
-                    "percent_of_undergraduate_enrollment_that_are_black_or_african_american",
-                    "percent_of_undergraduate_enrollment_that_are_hispanic/latino",
-                    "percent_of_undergraduate_students_awarded_pell_grants"
+                    "gradrate_ba_6yrs_total"
                     )
 
-df1 %>% filter(if_all(remove_any_nas), ~ is.na(.x))
+for (i in remove_any_nas){
+  df <- df %>% subset(!(is.na(df[[i]]) | (df[[i]] == 0)))
+}
+
+# for each subgroup, if they have students from that group, they should also have a graduation rate
+enroll_grad <- c("percent_of_undergraduate_enrollment_that_are_black_or_african_american" = "gradrate_ba_6yrs_black_non_hispanic",
+                    "percent_of_undergraduate_enrollment_that_are_hispanic_latino" = "gradrate_ba_6yrs_hispanic",
+                    "percent_of_undergraduate_enrollment_that_are_american_indian_or_alaska_native" = "gradrate_ba_6yrs_american_indian_or_alaska_native",
+                    "percent_of_undergraduate_students_awarded_pell_grants" = "pell_grant_recipients_overall_graduation_rate_within_150_percent_of_normal_time"
+                 )
+
+for (i in names(enroll_grad)){
+  df <- df %>% subset(ifelse(!is.na(df[[i]]) & (df[[i]] != 0),
+                             !is.na(df[[enroll_grad[[i]]]]),
+                             TRUE))
+}
 
 
+# remove any rows if they do not have *any* students from underrepresented groups
+df <- df %>% mutate(across(where(is.numeric), ~replace_na(.x, 0))) %>% mutate(sum_subgroups = percent_of_undergraduate_enrollment_that_are_black_or_african_american + percent_of_undergraduate_enrollment_that_are_hispanic_latino + percent_of_undergraduate_students_awarded_pell_grants + percent_of_undergraduate_enrollment_that_are_american_indian_or_alaska_native)
 
-paste("Removed", pre_df-nrow(df), "rows with null undergraduate enrollment and graduation rates data.")
+# remove any schools where there are no underrepresented subgroups
+df <- df %>% subset(sum_subgroups != 0)
 
+# compute mean
+df <- df %>% mutate(mean_subgroups = (percent_of_undergraduate_enrollment_that_are_black_or_african_american + percent_of_undergraduate_enrollment_that_are_hispanic_latino + percent_of_undergraduate_students_awarded_pell_grants + percent_of_undergraduate_enrollment_that_are_american_indian_or_alaska_native)/4)
+
+# convert mean subgroups to quantiles
+df <- df %>% mutate(diversity_quantiles = quantcut(df$mean_subgroups, q = 4, na.rm = TRUE))
+df$diversity_quantiles <- mapvalues(df$diversity_quantiles,
+                                    from = sort(unique(quantcut(df$mean_subgroups, q = 4, na.rm = TRUE))),
+                                    to = paste("diversity quantile", 1:4))
+
+# convert the sector into the actual names
+for (i in unique(value_mapping$VariableName)){
+  temp_map_val <- value_mapping %>% subset(VariableName == i)
+  df[[i]] <- mapvalues(df[[i]], from = temp_map_val$Value, to = temp_map_val$ValueLabel)
+}
+
+
+paste("Removed", pre_df-nrow(df), "rows with missing undergraduate enrollment and graduation rates data.")
+paste("Total # of schools for analysis:", nrow(df))
 
 write.csv(df, "../data/all_data_merged_df(NEW).csv", row.names = FALSE)
 
 ```
 
+## Perform EDA
 
+### Underrepresented Students Distribution
 ```{r}
-# enrollemnt size histogram
-hist(df[['undergraduate_enrollment']],
-     "Histogram of Undergraduate Enrollment for\nAll 4-Year Colleges in the United States",
-     col='green',
-     xlab="Number of Undegraduated Enrolled in 2018-19")
-abline(v=mean(df[['undergraduate_enrollment']]),col="blue",lwd=2)
+# mean of underrepresneted group makeup of the populations size histogram
+df %>% ggplot(aes(x=mean_subgroups)) + geom_boxplot(fill = "#bca0dc") + ggtitle("Average of Underrepresented Student Proportion of\nAll 4-Year Colleges in the United States") + xlab("Avg. % of Undergraduate Student Body Underrepresented Students") + theme_minimal() +  theme(plot.title = element_text(hjust = 0.5))
 
+# geom_boxplot(aes(x=variable, y=value, fill=variable))
+
+head(df %>% arrange(desc(sum_subgroups)) %>% select(institution_name, sum_subgroups))
 ```
 
-Visualizing the distribution of enrollment size and graduation rates enabled us to uncover outliers that 
+### Size of College (by Undergraduate Enrollment)
+```{r}
+# enrollemnt size histogram
+df %>% ggplot(aes(x=undergraduate_enrollment)) + geom_histogram(position="stack", col = "white", fill = "#bca0dc") + ggtitle("Undergraduate Enrollment Numbers for\nAll 4-Year Colleges in the United States") + xlab("Number of Undergraduates Enrolled") + ylab("# of Colleges") + geom_vline(xintercept=median(df$undergraduate_enrollment), color='#b30000') + theme_minimal() +  theme(plot.title = element_text(hjust = 0.5))
+```
+
+
+#### Look into Outliers
+* After googling each of the largest schools, we see that their abnormal size is due to being primarily online institutions. We decided to keep these institutions because it would be informative to know if primarily online institutions graduate underrepresented students at higher rates. Decided to take the logarithm of the enrollment size in order to coerce the distribution into being more normal
 
 ```{r}
 # look into outliers
 df %>% subset(undergraduate_enrollment > 40000) %>% select(institution_name, undergraduate_enrollment, all_programs_offered_completely_via_distance_education, percent_of_undergraduate_students_enrolled_exclusively_in_distance_education_courses) %>% arrange(desc(undergraduate_enrollment))
 # found out that these are all online colleges. question - would we want to include entirely online colleges? we should at least pull in that data point
 ```
+
+
 ```{r}
-# redo histogram without biggest outliers and take the log
-hist(log(df[['undergraduate_enrollment']]),
-     main="Histogram of Undergraduate Enrollment for\nAll 4-Year Colleges in the United States",
-     col='green',
-     xlab="Number of Undegraduates Enrolled in 2018-19")
-abline(v=mean(log(df[['undergraduate_enrollment']])),col="blue",lwd=2)
+library(scales)
+# redo histogram by taking log enrollment
+df %>% ggplot(aes(x=undergraduate_enrollment)) + scale_x_log10(breaks = trans_breaks("log10", function(x) 10^x), labels = trans_format("log10", math_format(10^.x))) + geom_histogram(position="stack", col = "white", fill = "#bca0dc") + ggtitle("Undergraduate Enrollment Numbers for\nAll 4-Year Colleges in the United States") + xlab("Number of Undergraduates Enrolled") + ylab("# of Colleges") + geom_vline(xintercept=mean(df$undergraduate_enrollment), color='#b30000') + theme_minimal() +  theme(plot.title = element_text(hjust = 0.5))
 
 ```
 
-In order to turn undergraduate enrollment into a normal distribution, I took the log of the data. 
 
-```{r}
-# perform normal test
-```
-
-
-
+### 6-Year Graduation Rates
 ```{r}
 # graduation rates histogram
-hist(df[['gradrate_ba_6yrs_total']],
-     main="Histogram of Graduation Rates for\n4-Year Colleges in the United States",
-     col='green',
-     xlab="Graduation Rate")
+df %>% ggplot(aes(x=gradrate_ba_6yrs_total)) + geom_histogram(position="stack", col = "white", fill = "#a3c585", bins = 10) + ggtitle("6-Year Graduation Rates for\nAll 4-Year Colleges in the United States") + xlab("6-Year Graduation Rates (%)") + ylab("# of Colleges") + geom_vline(xintercept=mean(df$gradrate_ba_6yrs_total), color='#b30000') + theme_minimal() +  theme(plot.title = element_text(hjust = 0.5))
 
-
-boxplot(df[['gradrate_ba_6yrs_total']],
-        main="Boxplot of All 4-Year Colleges in the U.S.",
-        col='green',
-        ylab="Graduation Rate")
 ```
+#### Look into Outliers
 ```{r}
 # look out graduate rate outliers
 
@@ -138,55 +176,84 @@ df %>% subset(gradrate_ba_6yrs_total < 10) %>% select(institution_name, undergra
 
 
 ```{r}
+library(reshape2)
+library(ggplot2)
 
-boxplot(df[['gradrate_ba_6yrs_men']],
-        df[['gradrate_ba_6yrs_women']],
-        names=c("Men Graduation Rate", "Women Graduation Rate"),
-        col=c('purple', 'orange'),
-        main="Boxplot of All 4-Year Colleges in the U.S. by Gender",
-        xlab='Gender',
-        ylab="Graduation Rate")
-# abline(b=mean(df[['gradrate_ba_6yrstotal']]), col='red')
-
+ggplot(melt(rename(df, Men = gradrate_ba_6yrs_men, Women = gradrate_ba_6yrs_women), id.vars = 'unitid', measure.vars = c('Men', 'Women'))) + geom_boxplot(aes(x=variable, y=value, fill=variable)) + ggtitle("Comparing 6-Year Graduation Rates for Each Sex")  + xlab("Gender") + ylab("6-Year Graduation Rates (%)") +  geom_hline(yintercept=mean(df$gradrate_ba_6yrs_total), color='#b30000', linetype ='dashed') + theme_minimal() +  theme(plot.title = element_text(hjust = 0.5)) + scale_fill_discrete(name = 'Gender')
 
 ```
 
-
+## Comparing Graduation Rates for Different Subgroups of Students
 ```{r}
 # any points above the red dotted lines are schools where Pell-Grant recipients are graduating at *higher* rates than the general student body
 # we added the dimension of school size to the mix and as you can see, majority of the schools where Pell-Grant recipients are graduating at much higher rates than the general student body are smaller sized schools
 ggplot(df, aes(x=gradrate_ba_6yrs_total, y=pell_grant_recipients_overall_graduation_rate_within_150_percent_of_normal_time, color = sector_of_institution)) + 
-  geom_point(aes(size=undergraduate_enrollment, fill = sector_of_institution), colour="white",pch=21) + geom_abline(intercept=0, slope=1, linetype='dashed', color='red') + labs(y='Pell Recipients 6-Year Graduation Rate', x='6-Year Graduation Rate All Students') + ggtitle("Comparing Overall Graduation Rates to\nPell Recipients Graduation Rates")
+  geom_point(aes(size=undergraduate_enrollment, fill = sector_of_institution), colour="white",pch=21) + geom_abline(intercept=0, slope=1, linetype='dashed', color='red') + labs(y='Pell Recipients 6-Year Graduation Rate', x='6-Year Graduation Rate All Students') + ggtitle("Comparing Overall Graduation Rates to\nPell Recipients Graduation Rates") + theme_gray() +  theme(plot.title = element_text(hjust = 0.5))
 
+paste("There are", sum(df$pell_grant_recipients_overall_graduation_rate_within_150_percent_of_normal_time > df$gradrate_ba_6yrs_total), "schools where Pell-Grant recipients graduate at higher rates than that school's overall population.")
 ```
 
 ```{r}
 # any points above the red dotted lines are schools where women graduate at higher rates than men
 ggplot(df, aes(y=gradrate_ba_6yrs_women, x=gradrate_ba_6yrs_men, color = sector_of_institution)) + 
-  geom_point(aes(size=undergraduate_enrollment, fill = sector_of_institution), colour="white",pch=21) + geom_abline(intercept=0, slope=1, linetype='dashed', color='red') + labs(x='6-Year Graduation Rate for Men', y='6-Year Graduation Rate for Women') + ggtitle("Comparing Graduation Rates of Men vs. Women")
+  geom_point(aes(size=undergraduate_enrollment, fill = sector_of_institution), colour="white",pch=21) + geom_abline(intercept=0, slope=1, linetype='dashed', color='red') + labs(x='6-Year Graduation Rate for Men', y='6-Year Graduation Rate for Women') + ggtitle("Comparing Graduation Rates of Men vs. Women") + theme_gray() +  theme(plot.title = element_text(hjust = 0.5))
 
 ```
 
 ```{r}
 # any points above the red dotted lines are schools where black students graduate at higher rates than white students
-ggplot(df, aes(y=gradrate_ba_6yrs_black_non_hispanic, x=gradrate_ba_6yrs_white_non_hispanic)) + 
-  geom_point(aes(size=undergraduate_enrollment, fill = sector_of_institution), colour="white", pch=21) + geom_abline(intercept=0, slope=1, linetype='dashed', color='red') + labs(x='6-Year Graduation Rate for White Students', y='6-Year Graduation Rate for Black Non-Hispanic Students') + ggtitle("Comparing Graduation Rates of White and Black Students")
+ggplot(df, aes(y=gradrate_ba_6yrs_black_non_hispanic, x=gradrate_ba_6yrs_total)) + 
+  geom_point(aes(size=undergraduate_enrollment, fill = sector_of_institution), colour="white", pch=21) + geom_abline(intercept=0, slope=1, linetype='dashed', color='red') + labs(x='6-Year Graduation Rate for All Students', y='6-Year Graduation Rate for Black Non-Hispanic Students') + ggtitle("Comparing Black Students' Graduation Rates\nto Each College's Total Graduation Rate") + theme_gray() +  theme(plot.title = element_text(hjust = 0.5))
+
+paste("There are", sum(df$gradrate_ba_6yrs_black_non_hispanic > df$gradrate_ba_6yrs_total), "schools where Black students graduate at higher rates than White students.")
 
 ```
 
 ```{r}
 # any points above the red dotted lines are schools where hispanic students graduate at higher rates than white students
-ggplot(df, aes(y=gradrate_ba_6yrs_hispanic, x=gradrate_ba_6yrs_white_non_hispanic, color = sector_of_institution)) + 
-  geom_point(aes(size=undergraduate_enrollment, fill = sector_of_institution), colour="white",pch=21) + geom_abline(intercept=0, slope=1, linetype='dashed', color='red') + labs(x='6-Year Graduation Rate for White Non-Hispanic Students', y='6-Year Graduation Rate for Hispanic Students') + ggtitle("Comparing Graduation Rates of White and Hispanic Students")
+ggplot(df, aes(y=gradrate_ba_6yrs_hispanic, x=gradrate_ba_6yrs_total, color = sector_of_institution)) + 
+  geom_point(aes(size=undergraduate_enrollment, fill = sector_of_institution), colour="white",pch=21) + geom_abline(intercept=0, slope=1, linetype='dashed', color='red') + labs(x='6-Year Graduation Rate for All Students', y='6-Year Graduation Rate for Hispanic Students') + ggtitle("Comparing Hispanic Students' Graduation Rates\nto Each College's Total Graduation Rate") + theme_gray() +  theme(plot.title = element_text(hjust = 0.5))
+
+paste("There are", sum(df$gradrate_ba_6yrs_hispanic > df$gradrate_ba_6yrs_total), "schools where Hispanic/Latinx students graduate at higher rates than White students.")
 
 ```
 
 
 ```{r}
-# do some data cleaning to try to scope out outliers - these are the cases in which 6-year grad rates are 100% (might want to remove these)
-id_cols <- c("unitid", "institution.name.x", "institution_entity_name_hd2020", "state.abbreviation_hd2020", "city.location.of.institution_hd2020",
-             "zip.code_hd2020", "institutional.category_hd2020")
-full_grad_rate <- df %>% subset(gradrate_ba_6yrstotal == 100) %>% dplyr::select(append(id_cols, colnames(df)[grep("grad(uation.)?rate", colnames(df))]))
-```
 
+hist(df$gradrate_ba_6yrs_american_indian_or_alaska_native)
+print(sum(!is.na(df$gradrate_ba_6yrs_american_indian_or_alaska_native)))
+
+# any points above the red dotted lines are schools where hispanic students graduate at higher rates than white students
+ggplot(df, aes(y=gradrate_ba_6yrs_american_indian_or_alaska_native, x=gradrate_ba_6yrs_white_non_hispanic, color = sector_of_institution)) + 
+  geom_point(aes(size=undergraduate_enrollment, fill = sector_of_institution), colour="white",pch=21) + geom_abline(intercept=0, slope=1, linetype='dashed', color='red') + labs(x='6-Year Graduation Rate for White Non-Hispanic Students', y='6-Year Graduation Rate for American Indian or Alaska Native (%)') + ggtitle("Comparing Graduation Rates of White and Native American Students (%)") + theme_gray() +  theme(plot.title = element_text(hjust = 0.5))
+
+
+paste("There are", sum(df$gradrate_ba_6yrs_american_indian_or_alaska_native > df$gradrate_ba_6yrs_total), "schools where Native American students graduate at higher rates than White students.")
+
+
+```
+  
+## Chi-Square for Independence
+### Is there a relationship between the 'diversity' of a school and the graduation rates of underrepresented students?
+```{r}
+# create a diversity metric
+df %>% ggplot(aes(x=sum_subgroups)) + geom_histogram(position="stack", col = "white", fill = "#a3c585", bins = 5) + ggtitle("Distribution of Diversity Metric") + xlab("Sum of Underrepresented Groups") + ylab("# of Colleges") + geom_vline(xintercept=median(df$sum_subgroups), color='#b30000') + theme_minimal() +  theme(plot.title = element_text(hjust = 0.5))
+
+
+# get the distribution of grad rate avg. for all underrepresented subgroups
+df %>% ggplot(aes(x=avg_grad_rate_underrepresented_students)) + geom_histogram(position="stack", col = "white", fill = "#a3c585", bins = 10) + ggtitle("Avg. 6-Year Graduation Rates for\nAll Underrepresented SubGroups") + xlab("6-Year Graduation Rates (%)") + ylab("# of Colleges") + geom_vline(xintercept=mean(df$avg_grad_rate_underrepresented_students), color='#b30000') + theme_minimal() +  theme(plot.title = element_text(hjust = 0.5))
+
+# get the average graduation rate for black, hispanic, and pell-reciepients 
+df$avg_grad_rate_underrepresented_students <- rowMeans(df[, c('gradrate_ba_6yrs_black_non_hispanic', 'gradrate_ba_6yrs_hispanic', 'pell_grant_recipients_overall_graduation_rate_within_150_percent_of_normal_time')])
+
+# get the distribution of grad rate avg. for all underrepresented subgroups
+df %>% ggplot(aes(x=avg_grad_rate_underrepresented_students)) + geom_histogram(position="stack", col = "white", fill = "#a3c585", bins = 10) + ggtitle("Avg. 6-Year Graduation Rates for\nAll Underrepresented SubGroups") + xlab("6-Year Graduation Rates (%)") + ylab("# of Colleges") + geom_vline(xintercept=mean(df$avg_grad_rate_underrepresented_students), color='#b30000') + theme_minimal() +  theme(plot.title = element_text(hjust = 0.5))
+
+```
+* Dependent variable = average graduation rate
+* Independent variable = Sector of institution
+```{r}
+# dependent 
+```
 
