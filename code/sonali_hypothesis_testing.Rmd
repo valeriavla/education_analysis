@@ -7,47 +7,57 @@ output: html_document
 
 ```{r}
 df <- read.csv('../data/all_data_merged_df.csv')
+df_1 <- read.csv('../data/all_data_merged_df(NEW).csv')
+df_2 <- read.csv('../data/enrollement_completer.csv')
 library(tidyverse)
+
+#maybe remove colleges with no black/hisp/pell grant
 ```
 
 ```{r}
 # do some data cleaning to try to scope out outliers - these are the cases in which 6-year grad rates are 100% (might want to remove these)
-
 #took the code from EDA code and removed these from the data set for hypothesis testing: 
 
-id_cols <- c("unitid", "institution.name.x", "institution_entity_name_hd2020", "state.abbreviation_hd2020", "city.location.of.institution_hd2020",
-             "zip.code_hd2020", "institutional.category_hd2020")
-full_grad_rate <- df %>% subset(gradrate_ba_6yrstotal == 100) %>% dplyr::select(append(id_cols, colnames(df)[grep("grad(uation.)?rate", colnames(df))]))
+id_cols <- c("unitid", "institution_name", "undergraduate_enrollment", "percent_of_undergraduate_enrollment_that_are_black_or_african_american",              "percent_of_undergraduate_students_awarded_pell_grants")
+full_grad_rate <- df_1 %>% subset(gradrate_ba_6yrs_total == 100) %>% dplyr::select(append(id_cols, colnames(df_1)[grep("grad(uation.)?rate", colnames(df_1))]))
 
-df_subset  <- df %>% slice(-c(71,571, 621, 682, 686))
+df_subset  <- df_1 %>% slice(-c(485, 538))
 
-write.csv(df_subset, "../data/data_merged_df.csv", row.names = FALSE)
+#write.csv(df_subset, "../data/data_merged_df.csv", row.names = FALSE)
 ```
 
 
 
 ###Pell-Grant recipients are graduating at *higher* rates than the general student body?
+
 Ho: There is no signification difference between the average graduation rates between pell grant recipients and the general student body. 
 
 Ha: Pell grant recipients have a significantly lower average graduation rates than the general student body. 
 
-
 ```{r}
-gen_body <- df_subset$gradrate_ba_6yrstotal
-pell_rate <- df_subset$pell.grant.recipients_.overall.graduation.rate.within.150.percent.of.normal.time
-
+#gen_body is the general body population for each school
+#pell_rate is looking at at those graduate rates for pell grant recipients 
+gen_body <- df_subset$gradrate_ba_6yrs_total
+pell_rate <- df_subset$pell_grant_recipients_overall_graduation_rate_within_150_percent_of_normal_time
 t.test(pell_rate, gen_body, alt="less")
-
 ```
 
-###Pell-Grant recipients are graduating at *higher* rates than the general student body based on  dimension of school size
-
+###Pell-Grant recipients are graduating at *higher* rates than the general student body based on dimension of school size
 
 Ho: There is no significant difference between Pell-Grant recipients graduation rates at small and larger schools
 
-Ha:Pell-Grant recipients at smaller schools have higher graduation rates than those at larger schools
+Ha: Pell-Grant recipients at bigger schools have higher graduation rates than those at smaller schools
  
 ```{r}
+enrollment <- df_subset$undergraduate_enrollment
+#first we need to classify what is small vs large school, the easiest way would to be splitting based on the median
+hist(enrollment)
+#weird spread but ok 
+split_val <- median(enrollment)
+pell_small <- subset(df_subset$pell_grant_recipients_overall_graduation_rate_within_150_percent_of_normal_time, df_subset$undergraduate_enrollment < split_val )
+pell_big <- subset(df_subset$pell_grant_recipients_overall_graduation_rate_within_150_percent_of_normal_time, df_subset$undergraduate_enrollment > split_val )
+
+t.test(pell_big, pell_small, alt="greater")
 
 ```
 
@@ -61,9 +71,9 @@ Ha: Women have a significantly higher average graduation rates than men.
 
 
 ```{r}
-grad_wom <- df_subset$gradrate_ba_6yrswomen
+grad_wom <- df_subset$gradrate_ba_6yrs_women
 
-grad_men <- df_subset$gradrate_ba_6yrsmen
+grad_men <- df_subset$gradrate_ba_6yrs_men
 
 t.test(grad_wom, grad_men, alt="greater")
 
@@ -78,8 +88,8 @@ Ha: Black students have a significantly lower average graduation rates than whit
 
 
 ```{r}
-bla_grad <- df_subset$gradrate_ba_6yrsblack_non.hispanic
-nonbla_grad <- df_subset$gradrate_ba_6yrswhite_non.hispanic
+bla_grad <- df_subset$gradrate_ba_6yrs_black_non_hispanic
+nonbla_grad <- df_subset$gradrate_ba_6yrs_white_non_hispanic
 
 t.test(bla_grad, nonbla_grad, alt="less")
 
@@ -92,17 +102,100 @@ Ha: Hispanic students have a significantly lower average graduation rates than n
 
 
 ```{r}
-hisp_grad <- df_subset$gradrate_ba_6yrshispanic
+hisp_grad <- df_subset$gradrate_ba_6yrs_hispanic
 
-all_nonhisp_grad <- append(df_subset$gradrate_ba_6yrswhite_non.hispanic,  nonbla_grad)
+all_nonhisp_grad <- append(df_subset$gradrate_ba_6yrs_white_non_hispanic,  bla_grad)
 
-t.test(all_nonhisp_grad, nonhisp_grad, alt="less")
-
-
-
-
-all_nonhisp_grad <-df_subset$gradrate_ba_6yrswhite_non.hispanic
-
-t.test(hisp_grad, nonhisp_grad, alt="less")
+t.test(all_nonhisp_grad, hisp_grad, alt="less")
 ```
+Chi-squared for independence: 
+
+##Is there a relationship between race and graduation rates? 
+
+As we are asking if they are independent, we should do a Chi-squared test for independence. 
+
+Ho: There is no association between graduation rate and known graduate race in the population of interest. 
+
+Ha: There is an association between graduation rate and known graduate race in the population of interest.
+
+
+
+Chi-squared goodness of fit: 
+
+##Does the graduate rate differ from enrollment rate
+
+Ho: The graduation count data comes from the distribution of the enrollment data. 
+
+Ha: The graduation count data does not come from the distribution of the enrollment data. 
+
+```{r}
+col_name_enrollment <- c("unitid","percent_of_undergraduate_enrollment_that_are_black_or_african_american", "percent_of_undergraduate_enrollment_that_are_hispanic_latino", "percent_of_undergraduate_enrollment_that_are_white","percent_of_undergraduate_enrollment_that_are_asian", "percent_of_undergraduate_enrollment_that_are_american_indian_or_alaska_native", "percent_of_undergraduate_enrollment_that_are_native_hawaiian_or_other_pacific_islander","undergraduate_enrollment","gradrate_ba_6yrs_black_non_hispanic","gradrate_ba_6yrs_hispanic","gradrate_ba_6yrs_white_non_hispanic", "gradrate_ba_6yrs_asian", "gradrate_ba_6yrs_american_indian_or_alaska_native", "gradrate_ba_6yrs_native_hawaiian_or_other_pacific_islander" ,"undergraduate_enrollment")
+chi_df <- subset(df_subset, select = col_name_enrollment)
+
+
+chi_df <- chi_df %>% mutate(count_white_enroll = undergraduate_enrollment * percent_of_undergraduate_enrollment_that_are_white/100)
+chi_df <- chi_df %>% mutate(count_black_enroll = undergraduate_enrollment * percent_of_undergraduate_enrollment_that_are_black_or_african_american/100)
+chi_df <- chi_df %>% mutate(count_hisp_enroll = undergraduate_enrollment * percent_of_undergraduate_enrollment_that_are_hispanic_latino/100)
+chi_df <- chi_df %>% mutate(count_asian_enroll = undergraduate_enrollment * percent_of_undergraduate_enrollment_that_are_asian/100)
+chi_df <- chi_df %>% mutate(count_ask_enroll = undergraduate_enrollment * percent_of_undergraduate_enrollment_that_are_american_indian_or_alaska_native/100)
+chi_df <- chi_df %>% mutate(count_haw_enroll = undergraduate_enrollment * percent_of_undergraduate_enrollment_that_are_native_hawaiian_or_other_pacific_islander/100)
+
+
+chi_df <- chi_df %>% mutate(count_white_grad = count_white_enroll * gradrate_ba_6yrs_white_non_hispanic/100)
+chi_df <- chi_df %>% mutate(count_black_grad = count_black_enroll * gradrate_ba_6yrs_black_non_hispanic/100)
+chi_df <- chi_df %>% mutate(count_hisp_grad = count_hisp_enroll * gradrate_ba_6yrs_hispanic/100)
+chi_df <- chi_df %>% mutate(count_asian_grad = count_asian_enroll * gradrate_ba_6yrs_asian/100)
+chi_df <- chi_df %>% mutate(count_ask_grad = count_ask_enroll * gradrate_ba_6yrs_american_indian_or_alaska_native/100)
+chi_df <- chi_df %>% mutate(count_haw_grad = count_haw_enroll * gradrate_ba_6yrs_native_hawaiian_or_other_pacific_islander/100)
+
+exp_count <- c(mean(chi_df$count_white_enroll), mean(chi_df$count_black_enroll), mean(chi_df$count_hisp_enroll), mean(chi_df$count_asian_enroll), mean(chi_df$count_ask_enroll), mean(chi_df$count_haw_enroll))
+
+obs_count <- c(mean(chi_df$count_white_grad), mean(chi_df$count_black_grad), mean(chi_df$count_hisp_grad),mean(chi_df$count_asian_grad), mean(chi_df$count_ask_grad),mean(chi_df$count_haw_grad) )
+
+chidf <- t(data.frame(exp_count, obs_count))
+
+chisq <- chisq.test(chidf)
+chisq
+
+exp_chi <- chisq.test(chidf)$expected
+print(exp_chi)
+
+
+#yates correction:
+chisq_1 <- chisq.test(chidf, correct = TRUE, simulate.p.value = TRUE)
+chisq_1
+```
+
+As our p value is less that 0.05, we can reject the null hypothesis. There are different counts between the graduation and enrollment counts. 
+
+
+
+##ANOVA:
+Ho: There is no difference among group means. 
+
+Ha: There is a difference between the group means. (One group differs significantly from the overall mean of the dependent variable) 
+
+```{r}
+col_name_anova <- c("unitid", "sector_of_institution", "gradrate_ba_6yrs_total", "diversity_quantiles", "undergraduate_enrollment")
+anova_df <- subset(df_subset, select = col_name_anova)
+anova_df <- anova_df %>% mutate(count_grad = log(undergraduate_enrollment * gradrate_ba_6yrs_total/100))
+
+
+hist(log(anova_df$count_grad))
+#would be doing a two way ANOVA: 
+
+two.way <- aov(count_grad ~ sector_of_institution + diversity_quantiles, data = anova_df)
+summary(two.way)
+
+interaction <- aov(count_grad ~ sector_of_institution + diversity_quantiles + sector_of_institution*diversity_quantiles, data = anova_df)
+summary(interaction)
+
+```
+
+Understanding results: 
+- These rows inform us whether our independent variables and their interaction have a statistically significant effect on the dependent variable.
+
+There are statistically significant differences between sector, diversity, and their interaction on the log of graduation counts.
+
+
 
