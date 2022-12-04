@@ -1,0 +1,267 @@
+---
+title: "Single and Multiple Linear Regression"
+author: "Valeria Vera"
+date: "2022-12-02"
+output: html_document
+---
+
+```{r}
+df <- read.csv('../data/all_data_merged_df(NEW).csv')
+library(tidyverse)
+library(ggpubr)
+theme_set(theme_pubr())
+library(ISLR2)
+library(leaps)
+
+library(tidyverse)
+library(caret)
+```
+
+Linear regression of two variables
+```{r}
+head(df)
+x = df$tot_men_enroll_2013
+y = df$gradrate_ba_6yrswomen
+model <- lm(x~y)
+print(summary(model))
+summary(model)$coefficient
+#predict with the defined model
+a <- data.frame(x = 2)
+result <-  predict(model,a)
+print(result)
+
+plot(y,x,col = "blue",main = "",
+     abline(model),cex = 1.3,pch = 16,xlab = "x",ylab = "y")
+confint(model)
+
+#residual standard error
+sigma(model)/mean(x)
+
+```
+For a given the predictor, the t-statistic evaluates whether or not there is significant association between the predictor and the outcome variable, that is whether the beta coefficient of the predictor is significantly different from zero.
+
+For a given predictor variable, the coefficient (b) can be interpreted as the average effect on y of a one unit increase in predictor, holding all other predictors fixed.
+
+
+
+Multiple linear regression
+```{r}
+x = df$tot_men_enroll_2013
+a = df$gradrate_ba_6yrswomen
+b = df$gradrate_ba_6yrsblack_non.hispanic
+
+model_mul <- lm(x ~ a + b )
+print(summary(model_mul))
+summary(model_mul)$coefficient
+
+
+plot(x,a+b,col = "blue",main = "", abline(model_mul),cex = 1.3,pch = 16,xlab = "x",ylab = "y")
+
+```
+```{r}
+anova(model, model_mul)
+```
+```{r}
+ggplot(df, aes(x = off_campus_not_with_family_room_and_board, y =  gradrate_ba_6yrs_women)) +
+  geom_point() +
+  stat_smooth()+geom_smooth(method='lm', se=FALSE, color = "red", size=0.5,linetype = "dashed") 
+
+model_mul <- lm(df$gradrate_ba_6yrs_women ~ df$off_campus_not_with_family_room_and_board)
+print(summary(model_mul))
+```
+```{r}
+ggplot(df, aes(x = off_campus_not_with_family_room_and_board, y =  gradrate_ba_6yrs_men)) +
+  geom_point() +
+  stat_smooth()+geom_smooth(method='lm', se=FALSE, color = "red", size=0.5,linetype = "dashed") 
+
+ggplot(df, aes(x = off_campus_not_with_family_room_and_board, y =  gradrate_ba_6yrs_men)) +
+  geom_point() +
+  stat_smooth()+geom_smooth(method='lm', se=FALSE, color = "red", size=0.5,linetype = "dashed") 
+```
+```{r}
+ggplot(df, aes(x = off_campus_not_with_family_room_and_board, y =  gradrate_ba_6yrs_total)) +
+  geom_point() +
+  stat_smooth()+geom_smooth(method='lm', se=FALSE, color = "red", size=0.5,linetype = "dashed") 
+
+model_mul <- lm(df$gradrate_ba_6yrs_women ~ df$off_campus_not_with_family_room_and_board)
+print(summary(model_mul)$coefficient)
+confint(model)
+```
+
+```{r}
+
+#renaming columns
+colnames(df)[which(names(df) == "gradrate_ba_6yrs_women")] <- "gradrate_women"
+colnames(df)[which(names(df) == "gradrate_ba_6yrs_men")] <- "gradrate_men"
+colnames(df)[which(names(df) == "percent_of_undergraduate_students_awarded_federal_state_local_institutional_or_other_sources_of_grant_aid")] <- "students_percent_aid"
+colnames(df)[which(names(df) == "percent_of_undergraduate_students_awarded_pell_grants")] <- "students_percent_pellg"
+colnames(df)[which(names(df) == "average_amount_of_federal_state_local_institutional_or_other_sources_of_grant_aid_awarded_to_undergraduate_students")] <- "students_avg_aid"
+colnames(df)[which(names(df) == "average_amount_pell_grant_aid_awarded_to_undergraduate_students")] <- "students_avg_pellg"
+colnames(df)[which(names(df) == "off_campus_not_with_family_room_and_board")] <- "living_exp_off_c"
+colnames(df)[which(names(df) == "on_campus_room_and_board")] <- "living_exp_on_c"
+
+df = df %>% drop_na(gradrate_women,gradrate_men,students_percent_aid,students_percent_pellg,students_avg_aid,students_avg_pellg,living_exp_off_c)
+```
+
+```{r}
+y <- ggplot(df, aes(x = living_exp_on_c, y =  gradrate_women)) +
+  geom_point(aes(color = living_exp_on_c),size=.8) +
+  scale_color_gradient(low = "orange", high = "darkblue") +
+  stat_smooth()+geom_smooth(method='lm', se=FALSE, color = "red", size=0.5,linetype = "dashed") 
+y + ggtitle("Relation of graduate rate by gender and living expenses on campus") +
+  xlab("living expenses by city (dollars)") + ylab("Graduate rate of woman")+ theme_gray() 
+
+y <- ggplot(df, aes(x = living_exp_on_c, y =  gradrate_men)) +
+  geom_point(aes(color = living_exp_on_c),size=.8) +
+  scale_color_gradient(low = "orange", high = "darkblue") +
+  stat_smooth()+geom_smooth(method='lm', se=FALSE, color = "red", size=0.5,linetype = "dashed") 
+y + ggtitle("Relation of graduate rate by gender and living expenses on campus") +
+  xlab("living expenses by city (dollars)") + ylab("Graduate rate of men")+ theme_gray() 
+
+```
+
+
+```{r}
+y <- ggplot(df, aes(x = living_exp_off_c, y =  gradrate_women)) +
+  geom_point(aes(color = living_exp_off_c),size=.8) +
+  scale_color_gradient(low = "orange", high = "darkblue") +
+  stat_smooth()+geom_smooth(method='lm', se=FALSE, color = "red", size=0.5,linetype = "dashed") 
+y + ggtitle("Relation of graduate rate by gender and living expenses out campus") +
+  xlab("living expenses by city (dollars)") + ylab("Graduate rate of woman")+ theme_gray() 
+
+y <- ggplot(df, aes(x = living_exp_off_c, y =  gradrate_men)) +
+  geom_point(aes(color = living_exp_off_c),size=.8) +
+  scale_color_gradient(low = "orange", high = "darkblue") +
+  stat_smooth()+geom_smooth(method='lm', se=FALSE, color = "red", size=0.5,linetype = "dashed") 
+y + ggtitle("Relation of graduate rate by gender and living expenses out campus") +
+  xlab("living expenses by city (dollars)") + ylab("Graduate rate of men")+ theme_gray() 
+
+```
+```{r}
+y <- ggplot(df, aes(x = students_percent_aid, y =  gradrate_women)) +
+  geom_point(aes(color = students_percent_aid),size=.8) +
+  scale_color_gradient(low = "orange", high = "darkblue") +
+  stat_smooth()+geom_smooth(method='lm', se=FALSE, color = "red", size=0.5,linetype = "dashed") 
+y + ggtitle("Relation of graduate rate by gender and students_percent_aid") +
+  xlab("students_percent_aid") + ylab("Graduate rate of woman")+ theme_gray() 
+
+y <- ggplot(df, aes(x = students_percent_aid, y =  gradrate_men)) +
+  geom_point(aes(color = students_percent_aid),size=.8) +
+  scale_color_gradient(low = "orange", high = "darkblue") +
+  stat_smooth()+geom_smooth(method='lm', se=FALSE, color = "red", size=0.5,linetype = "dashed") 
+y + ggtitle("Relation of graduate rate by gender and students_percent_aid") +
+  xlab("students_percent_aid") + ylab("Graduate rate of men")+ theme_gray() 
+
+```
+
+```{r}
+y <- ggplot(df, aes(x = students_percent_pellg, y =  gradrate_women)) +
+  geom_point(aes(color = students_percent_pellg),size=.8) +
+  scale_color_gradient(low = "orange", high = "darkblue") +
+  stat_smooth()+geom_smooth(method='lm', se=FALSE, color = "red", size=0.5,linetype = "dashed") 
+y + ggtitle("Relation of graduate rate by gender and students_percent_pellg") +
+  xlab("students_percent_pellg") + ylab("Graduate rate of woman")+ theme_gray() 
+
+y <- ggplot(df, aes(x = students_percent_pellg, y =  gradrate_men)) +
+  geom_point(aes(color = students_percent_pellg),size=.8) +
+  scale_color_gradient(low = "orange", high = "darkblue") +
+  stat_smooth()+geom_smooth(method='lm', se=FALSE, color = "red", size=0.5,linetype = "dashed") 
+y + ggtitle("Relation of graduate rate by gender and students_percent_pellg") +
+  xlab("students_percent_pellg") + ylab("Graduate rate of men")+ theme_gray() 
+
+```
+
+```{r}
+y <- ggplot(df, aes(x = students_avg_aid, y =  gradrate_women)) +
+  geom_point(aes(color = students_avg_aid),size=.8) +
+  scale_color_gradient(low = "orange", high = "darkblue") +
+  stat_smooth()+geom_smooth(method='lm', se=FALSE, color = "red", size=0.5,linetype = "dashed") 
+y + ggtitle("Relation of graduate rate by gender and students_avg_aid") +
+  xlab("students_percent_pellg") + ylab("Graduate rate of woman")+ theme_gray() 
+
+y <- ggplot(df, aes(x = students_avg_aid, y =  gradrate_men)) +
+  geom_point(aes(color = students_avg_aid),size=.8) +
+  scale_color_gradient(low = "orange", high = "darkblue") +
+  stat_smooth()+geom_smooth(method='lm', se=FALSE, color = "red", size=0.5,linetype = "dashed") 
+y + ggtitle("Relation of graduate rate by gender and students_avg_aid") +
+  xlab("students_avg_aid") + ylab("Graduate rate of men")+ theme_gray() 
+
+```
+
+```{r}
+y <- ggplot(df, aes(x = students_avg_pellg, y =  gradrate_women)) +
+  geom_point(aes(color = students_avg_pellg),size=.8) +
+  scale_color_gradient(low = "orange", high = "darkblue") +
+  stat_smooth()+geom_smooth(method='lm', se=FALSE, color = "red", size=0.5,linetype = "dashed") 
+y + ggtitle("Relation of graduate rate by gender and students_avg_pellg") +
+  xlab("students_percent_pellg") + ylab("Graduate rate of woman")+ theme_gray() 
+
+y <- ggplot(df, aes(x = students_avg_pellg, y =  gradrate_men)) +
+  geom_point(aes(color = students_avg_pellg),size=.8) +
+  scale_color_gradient(low = "orange", high = "darkblue") +
+  stat_smooth()+geom_smooth(method='lm', se=FALSE, color = "red", size=0.5,linetype = "dashed") 
+y + ggtitle("Relation of graduate rate by gender and students_avg_pellg") +
+  xlab("students_avg_pellg") + ylab("Graduate rate of men")+ theme_gray() 
+
+```
+
+
+```{r}
+#separating data
+set.seed(1)
+sample <- sample(c(TRUE, FALSE), nrow(df_clean), replace=TRUE, prob=c(0.8,0.2))
+train  <- df[sample, ]
+test   <- df[!sample, ]
+
+
+#define and train model
+model_m<- lm(gradrate_men ~ (students_percent_aid+students_percent_pellg+
+                             students_avg_aid+students_avg_pellg+
+                             +living_exp_off_c)^2, data = train)
+summary(model_m)
+
+#evaluate model
+error_rate = sigma(model_m)/mean(train$gradrate_men)
+y_hat <- predict(model_m, test)
+predictions <- model_m %>% predict(test)
+RMSE(predictions, test$gradrate_men)
+R2(predictions, test$gradrate_men)
+
+par(mfrow=c(2,2))
+plot(model_m)
+```
+
+
+```{r}
+
+#separating data
+set.seed(1)
+sample <- sample(c(TRUE, FALSE), nrow(df_clean), replace=TRUE, prob=c(0.8,0.2))
+train  <- df[sample, ]
+test   <- df[!sample, ]
+
+#define and train model
+model_w<- lm(gradrate_women ~ (students_percent_aid+students_percent_pellg+
+                             students_avg_aid+students_avg_pellg+
+                             +living_exp_off_c)^2, data = train)
+summary(model_w)
+
+#evaluate model
+error_rate = sigma(model_w)/mean(train$gradrate_women)
+y_hat <- predict(model_w, test)
+predictions <- model_w %>% predict(test)
+RMSE(predictions, test$gradrate_women)
+R2(predictions, test$gradrate_women)
+
+par(mfrow=c(2,2))
+plot(model_w)
+```
+```{r}
+#anova(model_m,model_w)
+
+#Model 1: value ~ weight + clarity
+#Model 2: value ~ weight + clarity + color
+ 
+```
+
+
