@@ -96,7 +96,7 @@ for (i in names(enroll_grad)){
 
 
 # remove any rows if they do not have *any* students from underrepresented groups
-df <- df %>% mutate(across(where(is.numeric), ~replace_na(.x, 0))) %>% mutate(sum_subgroups = percent_of_undergraduate_enrollment_that_are_black_or_african_american + percent_of_undergraduate_enrollment_that_are_hispanic_latino + percent_of_undergraduate_students_awarded_pell_grants + percent_of_undergraduate_enrollment_that_are_american_indian_or_alaska_native)
+df <- df %>% mutate(across(where(is.numeric), ~replace_na(.x, 0))) %>% mutate(sum_subgroups = percent_of_undergraduate_enrollment_that_are_black_or_african_american + percent_of_undergraduate_enrollment_that_are_hispanic_latino + percent_of_undergraduate_students_awarded_pell_grants + percent_of_undergraduate_enrollment_that_are_american_indian_or_alaska_native) %>% mutate(sum_race_subgroups = percent_of_undergraduate_enrollment_that_are_black_or_african_american + percent_of_undergraduate_enrollment_that_are_hispanic_latino + percent_of_undergraduate_enrollment_that_are_american_indian_or_alaska_native + percent_of_undergraduate_enrollment_that_are_native_hawaiian_or_other_pacific_islander)
 
 # remove any schools where there are no underrepresented subgroups
 df <- df %>% subset(sum_subgroups != 0)
@@ -136,8 +136,15 @@ gtown
 ### Underrepresented Students Distribution
 ```{r}
 # mean of underrepresneted group makeup of the populations size histogram
-df %>% ggplot(aes(x=mean_subgroups)) + geom_boxplot(fill = "#bca0dc") + ggtitle("Percentage of Student Body in Underrepresented Groups*\nfor all 4-Year Colleges in the United States") + xlab("Avg. % of Undergraduate Student Body in Underrepresented Subgroups") + theme_minimal() +  theme(plot.title = element_text(hjust = 0.5)) + geom_vline(xintercept=gtown$mean_subgroups, color='#000080', linetype = "dashed")
+# df %>% ggplot(aes(x=mean_subgroups)) + geom_boxplot(fill = "#bca0dc") + ggtitle("Percent of Undergraduate Population Belonging to\nan Underrepresented Demographic*\nfor all 4-Year Colleges in the United States") + xlab("% of Undergraduate Population in an Underrepresented Demographics") + theme_minimal() +  theme(plot.title = element_text(hjust = 0.5)) + geom_vline(xintercept=gtown$mean_subgroups, color='#000080', linetype = "dashed")
 
+# sum of all underrepresented races = black, hispanic, native american, and pacific islander 
+df %>% ggplot(aes(x=sum_race_subgroups)) + geom_boxplot(fill = "#bca0dc") + ggtitle("Percent of Undergraduate Population Belonging to\nan Underrepresented Race/Ethnicity Demographic*\nfor all 4-Year Colleges in the United States") + xlab("% of Undergraduate Population in an Underrepresented Race/Ethnicity*") + theme_minimal() +  theme(plot.title = element_text(hjust = 0.5)) + geom_vline(xintercept=gtown$sum_race_subgroups, color='#000080', linetype = "dashed")
+
+
+# does racial diversity lead to overall higher graduation rates?
+ggplot(df, aes(y=gradrate_ba_6yrs_total, x=sum_race_subgroups, color = sector_of_institution)) + 
+  geom_point(aes(size=undergraduate_enrollment, fill = sector_of_institution), colour="white",pch=21) + geom_vline(xintercept=median(df$sum_race_subgroups), linetype='dashed', color='red') + geom_hline(yintercept=median(df$gradrate_ba_6yrs_total), linetype='dashed', color='red') + labs(y='College\'s 6-Year Graduation Rate (%)', x='% of Undergraduate Population in\nUnderrepresented Racial Category') + ggtitle("Overall Graduation Rates and\nDiverse Makeup of Undergraduate Population") + theme_gray() +  theme(plot.title = element_text(hjust = 0.5)) + geom_point(aes(gtown$gradrate_ba_6yrs_total, gtown$sum_race_subgroups), fill='#000080', colour="red", pch=21)
 # geom_boxplot(aes(x=variable, y=value, fill=variable))
 
 head(df %>% arrange(desc(sum_subgroups)) %>% select(institution_name, sum_subgroups))
