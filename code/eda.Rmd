@@ -1,3 +1,8 @@
+---
+output:
+  pdf_document: default
+  html_document: default
+---
 
 ## Read in Data
 * Map column values according to data dictionary
@@ -278,7 +283,7 @@ df %>% ggplot(aes(x=black_above_avg, fill = black_above_avg)) + geom_bar(positio
 df %>% ggplot(aes(x=pell_above_avg, fill = pell_above_avg)) + geom_bar(position="stack", col = "white") + ggtitle("Seeing Graduation Rates for Schools\nWhere Low-Income Students Perform\nin par w/ Rest of Student Body") + xlab("Graduation Rate") + ylab("# of Colleges") + geom_vline(xintercept=median(df$gradrate_ba_6yrs_total), color='#b30000') + theme_minimal() +  theme(plot.title = element_text(hjust = 0.5)) + geom_vline(xintercept=gtown$gradrate_ba_6yrs_total, color='#000080', linetype = "dashed")
 ```
 
-```{r}
+```{r fig.width=10}
 subgroups_success_df %>% ggplot(aes(x=sector_of_institution, fill = sector_of_institution)) + geom_bar(position="stack", col = "white") + ggtitle("Sector of Institution") + xlab("Graduation Rate") + ylab("# of Colleges") + geom_vline(xintercept=median(df$gradrate_ba_6yrs_total), color='#b30000') + theme_minimal() +  theme(plot.title = element_text(hjust = 0.5)) + geom_vline(xintercept=gtown$gradrate_ba_6yrs_total, color='#000080', linetype = "dashed")
 
 subgroups_success_df %>% ggplot(aes(x=undergraduate_enrollment)) + scale_x_log10(breaks = trans_breaks("log10", function(x) 10^x), labels = trans_format("log10", math_format(10^.x))) + geom_histogram(position="stack", col = "white", fill = "#bca0dc", bins=5) + ggtitle("Undergraduate Enrollment Numbers for\nAll 4-Year Colleges in the United States") + xlab("Number of Undergraduates Enrolled") + ylab("# of Colleges") + geom_vline(xintercept=mean(df$undergraduate_enrollment), color='#b30000') + theme_minimal() +  theme(plot.title = element_text(hjust = 0.5)) + geom_vline(xintercept=gtown$undergraduate_enrollment, color='#000080', linetype = "dashed")
@@ -335,10 +340,6 @@ print(table(df$above_avg_aid))
 gtown <- df %>% subset(institution_name == 'Georgetown University')
 print(gtown$percent_covered_aid)
 
-df %>%
-  ggplot( aes(x = above_avg_aid, y = pell_grant_recipients_overall_graduation_rate_within_150_percent_of_normal_time, fill=diverse_black)) +
-  geom_boxplot() + ggtitle("Graduation Rates for Low-Income Students at Schools w/\nDifferent Financial Aid Coverage")+ theme(plot.title = element_text(hjust = 0.5)) + xlab("Financial Aid Coverage > Avg.(All Schools' Financial Aid Coverage)") + ylab("6-Year Graduation Rate for Pell Grant Recipients (%)") + geom_hline(yintercept = mean(df$pell_grant_recipients_overall_graduation_rate_within_150_percent_of_normal_time), linetype='dashed', color='red')
-
 # null hypothesis: the average graduation rate for pell students at schools where the average aid given covers more than the median amount is the same as schools where average aid is median amount or less
 # alternative hypothesis: the average graduation rate for pell students at schools where the average aid given covers more than the median amount is MORE than schools where average aid is median amount or less
 t.test(pell_grant_recipients_overall_graduation_rate_within_150_percent_of_normal_time ~ above_avg_aid,
@@ -376,6 +377,10 @@ df <- df %>% mutate(diverse_black =  ifelse(percent_of_undergraduate_enrollment_
                                                'black/aa diverse',
                                                'not black/aa diverse'))
 print(table(df$diverse_black))
+
+df %>%
+  ggplot( aes(x = above_avg_aid, y = pell_grant_recipients_overall_graduation_rate_within_150_percent_of_normal_time, fill=diverse_black)) +
+  geom_boxplot() + ggtitle("Graduation Rates for Low-Income Students at Schools w/\nDifferent Financial Aid Coverage")+ theme(plot.title = element_text(hjust = 0.5)) + xlab("Financial Aid Coverage > Avg.(All Schools' Financial Aid Coverage)") + ylab("6-Year Graduation Rate for Pell Grant Recipients (%)") + geom_hline(yintercept = mean(df$pell_grant_recipients_overall_graduation_rate_within_150_percent_of_normal_time), linetype='dashed', color='red')
 
 df %>%
   ggplot( aes(x = diverse_black, y = gradrate_ba_6yrs_black_non_hispanic, fill=diverse_black)) +
@@ -453,7 +458,7 @@ df %>%
 
 
 ```{r}
-
+ 
 hist(df[df$black_above_avg==TRUE,]$gradrate_ba_6yrs_black_non_hispanic)
 
 temp_df <- df %>% subset(black_above_avg==TRUE)
@@ -471,7 +476,6 @@ df$diversity_quantiles <- mapvalues(df$diversity_quantiles,
                                     from = sort(unique(quantcut(df$mean_subgroups, q = 4, na.rm = TRUE))),
                                     to = paste("diversity quantile", 1:4))
 
-df <- df %>% mutate(endowment_breaks = )
 
 ```
 
