@@ -134,7 +134,7 @@ gtown
 
 
 ### Underrepresented Students Distribution
-```{r}
+```{r }
 # mean of underrepresneted group makeup of the populations size histogram
 # df %>% ggplot(aes(x=mean_subgroups)) + geom_boxplot(fill = "#bca0dc") + ggtitle("Percent of Undergraduate Population Belonging to\nan Underrepresented Demographic*\nfor all 4-Year Colleges in the United States") + xlab("% of Undergraduate Population in an Underrepresented Demographics") + theme_minimal() +  theme(plot.title = element_text(hjust = 0.5)) + geom_vline(xintercept=gtown$mean_subgroups, color='#000080', linetype = "dashed")
 
@@ -144,7 +144,7 @@ df %>% ggplot(aes(x=sum_race_subgroups)) + geom_boxplot(fill = "#bca0dc") + ggti
 
 # does racial diversity lead to overall higher graduation rates?
 ggplot(df, aes(y=gradrate_ba_6yrs_total, x=sum_race_subgroups, color = sector_of_institution)) + 
-  geom_point(aes(size=undergraduate_enrollment, fill = sector_of_institution), colour="white",pch=21) + geom_vline(xintercept=median(df$sum_race_subgroups), linetype='dashed', color='red') + geom_hline(yintercept=median(df$gradrate_ba_6yrs_total), linetype='dashed', color='red') + labs(y='College\'s 6-Year Graduation Rate (%)', x='% of Undergraduate Population in\nUnderrepresented Racial Category') + ggtitle("Overall Graduation Rates and\nDiverse Makeup of Undergraduate Population") + theme_gray() +  theme(plot.title = element_text(hjust = 0.5)) + geom_point(aes(gtown$gradrate_ba_6yrs_total, gtown$sum_race_subgroups), fill='#000080', colour="red", pch=21)
+  geom_point(aes(size=undergraduate_enrollment, fill = sector_of_institution), colour="white",pch=21) + geom_vline(xintercept=median(df$sum_race_subgroups), linetype='dashed', color='red') + geom_hline(yintercept=mean(df$gradrate_ba_6yrs_total), linetype='dashed', color='red') + labs(y='College\'s 6-Year Graduation Rate (%)', x='% of Undergraduate Population in\nUnderrepresented Racial Category') + ggtitle("Overall Graduation Rates and\nDiverse Makeup of Undergraduate Population") + theme_gray() +  theme(plot.title = element_text(hjust = 0.5)) + geom_point(aes(gtown$gradrate_ba_6yrs_total, gtown$sum_race_subgroups), fill='#000080', colour="red", pch=21)
 # geom_boxplot(aes(x=variable, y=value, fill=variable))
 
 head(df %>% arrange(desc(sum_subgroups)) %>% select(institution_name, sum_subgroups))
@@ -222,7 +222,7 @@ df <- df %>% mutate(women_above_avg = gradrate_ba_6yrs_women >= gradrate_ba_6yrs
 ```{r}
 # any points above the red dotted lines are schools where black students graduate at higher rates than white students
 ggplot(df, aes(y=gradrate_ba_6yrs_black_non_hispanic, x=gradrate_ba_6yrs_total)) + 
-  geom_point(aes(size=undergraduate_enrollment, fill = sector_of_institution), colour="white", pch=21) + geom_abline(intercept=0, slope=1, linetype='dashed', color='red') + labs(x='6-Year Graduation Rate for All Students', y='6-Year Graduation Rate for Black Non-Hispanic Students') + ggtitle("Comparing Black Students' Graduation Rates\nto Each College's Total Graduation Rate") + theme_gray() +  theme(plot.title = element_text(hjust = 0.5)) + geom_point(aes(gtown$gradrate_ba_6yrs_black_non_hispanic, gtown$gradrate_ba_6yrs_total), fill='#000080', colour="red", pch=21)
+  geom_point(aes(size=undergraduate_enrollment, fill = sector_of_institution), colour="white", pch=21) + geom_abline(intercept=0, slope=1, linetype='dashed', color='red') + labs(x='6-Year Graduation Rate for All Students (%)', y='6-Year Graduation Rate for Black\nNon-Hispanic Students (%)') + ggtitle("Comparing Graduation Rates of Black Students\nto the College's Total Graduation Rate of All Students") + theme_gray() +  theme(plot.title = element_text(hjust = 0.5)) + geom_point(aes(gtown$gradrate_ba_6yrs_black_non_hispanic, gtown$gradrate_ba_6yrs_total), fill='#000080', colour="red", pch=21)
 
 paste("There are", sum(df$gradrate_ba_6yrs_black_non_hispanic > df$gradrate_ba_6yrs_total), "schools where Black students graduate at higher rates than White students.")
 
@@ -327,7 +327,7 @@ boxplot(df$average_net_price_income_0_30_000_students_awarded_title_iv_federal_f
 
 ## Hypothesis test: Financial Aid Coverage <> Low-Income Students' Grad Rates
 ```{r}
-mean_aid <- mean(df$percent_covered_aid, na.rm=TRUE)
+(mean_aid <- mean(df$percent_covered_aid, na.rm=TRUE))
 df <- df %>% mutate(above_avg_aid = ifelse(percent_covered_aid > mean_aid, "above avg. aid", "avg. aid or below"))
 print(table(df$above_avg_aid))
 
@@ -336,8 +336,8 @@ gtown <- df %>% subset(institution_name == 'Georgetown University')
 print(gtown$percent_covered_aid)
 
 df %>%
-  ggplot( aes(x = above_avg_aid, y = pell_grant_recipients_overall_graduation_rate_within_150_percent_of_normal_time, fill=above_avg_aid)) +
-  geom_boxplot() + ggtitle("Low-Income Grad Rates at Schools w/\nDifferent Financial Aid Coverage")
+  ggplot( aes(x = above_avg_aid, y = pell_grant_recipients_overall_graduation_rate_within_150_percent_of_normal_time, fill=diverse_black)) +
+  geom_boxplot() + ggtitle("Graduation Rates for Low-Income Students at Schools w/\nDifferent Financial Aid Coverage")+ theme(plot.title = element_text(hjust = 0.5)) + xlab("Financial Aid Coverage > Avg.(All Schools' Financial Aid Coverage)") + ylab("6-Year Graduation Rate for Pell Grant Recipients (%)") + geom_hline(yintercept = mean(df$pell_grant_recipients_overall_graduation_rate_within_150_percent_of_normal_time), linetype='dashed', color='red')
 
 # null hypothesis: the average graduation rate for pell students at schools where the average aid given covers more than the median amount is the same as schools where average aid is median amount or less
 # alternative hypothesis: the average graduation rate for pell students at schools where the average aid given covers more than the median amount is MORE than schools where average aid is median amount or less
@@ -386,7 +386,7 @@ df %>%
 # alternative hypothesis: the average graduation rate for black / african american students at schools where the demographic is above avg. black / african american population is MORE THAN at schools where black / african american population is avg
 t.test(gradrate_ba_6yrs_black_non_hispanic ~ diverse_black,
        data = df,
-       alternative = "less")
+       alternative = "greater")
 ```
 
 
@@ -401,6 +401,8 @@ df <- df %>% mutate(diverse_native =  ifelse(percent_of_undergraduate_enrollment
 
 print(table(df$diverse_native))
 
+
+
 df %>%
   ggplot( aes(x = diverse_native, y = gradrate_ba_6yrs_american_indian_or_alaska_native, fill=diverse_native)) +
   geom_boxplot() + ggtitle("American Indian/Native American Grad Rates at Schools w/\nDifferent American Indian/Native American Populations")
@@ -411,3 +413,65 @@ t.test(gradrate_ba_6yrs_american_indian_or_alaska_native ~ diverse_native,
        data = df,
        alternative = "greater")
 ```
+
+
+
+## Hypothesis test: HBCU Status <> Black Grad Rates
+```{r fig.width = 10, fig.height=4}
+print(table(df$historically_black_college_or_university))
+
+df %>%
+  ggplot( aes(x = historically_black_college_or_university, y = gradrate_ba_6yrs_black_non_hispanic, fill=historically_black_college_or_university)) +
+  geom_boxplot() + ggtitle("Comparing Graduation Rates of Black Students\nat Schools w/ or w/out HBCU Status")
+
+df %>% 
+  ggplot( aes(x = sector_of_institution, y = gradrate_ba_6yrs_black_non_hispanic, fill=above_avg_aid)) +
+  geom_boxplot() + ggtitle("Comparing Graduation Rates of Black Students\nat Difference Sectors") + theme(plot.title = element_text(hjust = 0.5))
+
+df %>% 
+  ggplot( aes(x = sector_of_institution, y = gradrate_ba_6yrs_hispanic, fill=above_avg_aid)) +
+  geom_boxplot() + ggtitle("Comparing Graduation Rates of Hispanic Students\nat Difference Sectors") + theme(plot.title = element_text(hjust = 0.5))
+
+df %>% 
+  ggplot( aes(x = sector_of_institution, y = pell_grant_recipients_overall_graduation_rate_within_150_percent_of_normal_time, fill=above_avg_aid)) +
+  geom_boxplot() + ggtitle("Comparing Graduation Rates of Low-Income Students\nat Difference Sectors") + theme(plot.title = element_text(hjust = 0.5))
+
+
+# null hypothesis: the average graduation rate for black students at HBCU schools is the same than at non-HBCU schools
+# alternative hypothesis: the average graduation rate for black students at HBCU schools is statistically greater than the avg. grad rate at non-HBCU schools
+t.test(gradrate_ba_6yrs_black_non_hispanic ~ historically_black_college_or_university,
+       data = df,
+       alternative = "less")
+```
+
+```{r fig.width = 15, fig.height=4}
+df %>% 
+  ggplot( aes(x = degree_of_urbanization_urban_centric_locale, y = gradrate_ba_6yrs_hispanic, fill=degree_of_urbanization_urban_centric_locale)) +
+  geom_boxplot() + ggtitle("Comparing Graduation Rates of Low-Income Students\nat Difference Sectors") + theme(plot.title = element_text(hjust = 0.5))
+```
+
+
+
+```{r}
+
+hist(df[df$black_above_avg==TRUE,]$gradrate_ba_6yrs_black_non_hispanic)
+
+temp_df <- df %>% subset(black_above_avg==TRUE)
+
+colnames(temp_df)
+
+print(table(temp_df$sector_of_institution))
+hist(temp_df$average_amount_of_federal_student_loans_awarded_to_undergraduate_students)
+hist(df$average_amount_of_federal_student_loans_awarded_to_undergraduate_students)
+hist(log(df$endowment_total))
+
+
+df <- df %>% mutate(endowment_quantiles = quantcut(df$mean_subgroups, q = 4, na.rm = TRUE))
+df$diversity_quantiles <- mapvalues(df$diversity_quantiles,
+                                    from = sort(unique(quantcut(df$mean_subgroups, q = 4, na.rm = TRUE))),
+                                    to = paste("diversity quantile", 1:4))
+
+df <- df %>% mutate(endowment_breaks = )
+
+```
+
